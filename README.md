@@ -51,11 +51,64 @@ The import path is the module path; the package name is its last element.
 
 ## Examples
 
-Each example adds one thing to an earlier one. The first line of each names the change.
+Each example opens with **Before**: the same task as a popular open-source project writes it without loadconf, condensed from the linked files, and a table of what differs. **With loadconf** follows; it adds one thing to an earlier example and names the change.
 
 ### 1 One config file
 
-`config.yaml`:
+**Before**, from [gin-vue-admin](https://github.com/flipped-aurora/gin-vue-admin) ([config/db_list.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/db_list.go), [config/gorm_mysql.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/gorm_mysql.go), [core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go), [initialize/gorm_mysql.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/gorm_mysql.go)):
+
+```go
+// config/db_list.go
+type GeneralDB struct {
+	Path            string `mapstructure:"path" json:"path" yaml:"path"`
+	Port            string `mapstructure:"port" json:"port" yaml:"port"`
+	Config          string `mapstructure:"config" json:"config" yaml:"config"` // the DSN's query string
+	Dbname          string `mapstructure:"db-name" json:"db-name" yaml:"db-name"`
+	Username        string `mapstructure:"username" json:"username" yaml:"username"`
+	Password        string `mapstructure:"password" json:"password" yaml:"password"`
+	MaxIdleConns    int    `mapstructure:"max-idle-conns" json:"max-idle-conns" yaml:"max-idle-conns"`
+	MaxOpenConns    int    `mapstructure:"max-open-conns" json:"max-open-conns" yaml:"max-open-conns"`
+	ConnMaxLifetime int    `mapstructure:"conn-max-lifetime" json:"conn-max-lifetime" yaml:"conn-max-lifetime"` // seconds
+	// …
+}
+
+// config/gorm_mysql.go
+func (m *Mysql) Dsn() string {
+	return m.Username + ":" + m.Password + "@tcp(" + m.Path + ":" + m.Port + ")/" + m.Dbname + "?" + m.Config
+}
+
+// core/viper.go
+v := viper.New()
+v.SetConfigFile(config)
+v.SetConfigType("yaml")
+if err := v.ReadInConfig(); err != nil {
+	panic(fmt.Errorf("fatal error config file: %w", err))
+}
+if err := v.Unmarshal(&global.GVA_CONFIG); err != nil {
+	panic(fmt.Errorf("fatal error unmarshal config: %w", err))
+}
+
+// initialize/gorm_mysql.go
+db, err := gorm.Open(mysql.New(mysql.Config{DSN: m.Dsn()}), internal.Gorm.Config(m.GeneralDB))
+if err != nil {
+	panic(err)
+}
+sqlDB, _ := db.DB()
+sqlDB.SetMaxIdleConns(m.MaxIdleConns)
+sqlDB.SetMaxOpenConns(m.MaxOpenConns)
+sqlDB.SetConnMaxLifetime(time.Duration(m.ConnMaxLifetime) * time.Second)
+```
+
+| | gin-vue-admin | loadconf |
+|---|---|---|
+| Settings type | written per project, with three tags on every field | `config.MySQL`; your own fields need no tags |
+| DSN | concatenated in `Dsn()`; extra parameters are one raw query string | built from the fields; parameters are a map under `params` |
+| Durations | an int of seconds, multiplied in code | `5m`, `90s` |
+| Pool | set by hand; a key left out is 0, and `SetMaxIdleConns(0)` keeps no idle connections | applied from the file; a key left out keeps database/sql's default |
+| Mistakes | a misspelled key is ignored; an empty host is found when connecting | a misspelled key logs a warning; every invalid value is reported at once, with its key path |
+| Connecting | no deadline unless the query string sets `timeout` | a ping within `ping_timeout` (3s) |
+
+**With loadconf.** `config.yaml`:
 
 ```yaml
 # A key is the snake_case name of its field, with product names kept whole:
@@ -118,7 +171,41 @@ func main() {
 
 ### 2 One file per environment
 
-**Changes from example 1:** `config.File("config.yaml")` becomes `config.Profile("app")`.
+**Before**, from gin-vue-admin ([core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go), [core/internal/constant.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/internal/constant.go)):
+
+```go
+// getConfigPath picks one file, and only that file is read.
+func getConfigPath() (config string) {
+	flag.StringVar(&config, "c", "", "choose config file.")
+	flag.Parse()
+	if config != "" {
+		return
+	}
+	if env := os.Getenv("GVA_CONFIG"); env != "" {
+		return env
+	}
+	switch gin.Mode() {
+	case gin.DebugMode:
+		config = "config.debug.yaml"
+	case gin.ReleaseMode:
+		config = "config.release.yaml"
+	case gin.TestMode:
+		config = "config.test.yaml"
+	}
+	if _, err := os.Stat(config); err != nil {
+		config = "config.yaml"
+	}
+	return
+}
+```
+
+| | gin-vue-admin | loadconf |
+|---|---|---|
+| Files read | one; each environment's file repeats the shared keys | `app.yaml`, then `app.$ENV.yaml` over it, key by key |
+| An environment without its own file | runs on `config.yaml` | `Load` fails, naming the file it looked for |
+| Chosen by | `-c`, then `$GVA_CONFIG`, then gin's mode | `$ENV`; `$CONFIG_PATH` names a single file |
+
+**With loadconf**, changes from example 1: `config.File("config.yaml")` becomes `config.Profile("app")`.
 
 ```
 configs/
@@ -205,7 +292,45 @@ config.Profile("app", config.ProfilePathEnvVar("APP_CONFIG"))     // variable na
 
 ### 3 Environment variables and secrets
 
-**Changes from example 2:** `config.DotEnv` and `config.Env` join the sources, and `PaymentKey` is a `config.Secret`.
+**Before**, from [go-clean-arch](https://github.com/bxcodec/go-clean-arch) ([app/main.go](https://github.com/bxcodec/go-clean-arch/blob/e06c6d0cb37069b0ef56e3df67f80ca130a1ab82/app/main.go)):
+
+```go
+func init() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+}
+
+func main() {
+	dbHost := os.Getenv("DATABASE_HOST")
+	dbPort := os.Getenv("DATABASE_PORT")
+	dbUser := os.Getenv("DATABASE_USER")
+	dbPass := os.Getenv("DATABASE_PASS")
+	dbName := os.Getenv("DATABASE_NAME")
+	connection := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", dbUser, dbPass, dbHost, dbPort, dbName)
+	// …
+	timeoutStr := os.Getenv("CONTEXT_TIMEOUT")
+	timeout, err := strconv.Atoi(timeoutStr)
+	if err != nil {
+		log.Println("failed to parse timeout, using default timeout")
+		timeout = defaultTimeout
+	}
+	timeoutContext := time.Duration(timeout) * time.Second
+	// …
+}
+```
+
+| | go-clean-arch | loadconf |
+|---|---|---|
+| `.env` | required: without the file the process exits, in production too | `DotEnvOptional()`: read when present |
+| Reading | one `os.Getenv` per setting | `config.Env("APP")` maps every `APP_` variable to its key |
+| Config files | none: every setting is a variable | files and variables together; a variable overrides one key |
+| Types | parsed by hand; `CONTEXT_TIMEOUT=2s` logs a line and runs with the default | decoded by the field's type; a bad value fails `Load`, naming the key |
+| An unset variable | an empty string, passed into the DSN | a required field fails `Load` |
+| Password | a plain string | `config.Secret`: `******` under every fmt verb |
+
+**With loadconf**, changes from example 2: `config.DotEnv` and `config.Env` join the sources, and `PaymentKey` is a `config.Secret`.
 
 ```go
 package main
@@ -277,7 +402,65 @@ PORT=9090                     # the env tag of Port; APP_PORT=9090 also works, b
 
 ### 4 Several databases
 
-**Changes from example 3:** `config.MySQL` becomes `config.Named[config.MySQL]`, and the code picks instances by name.
+**Before**, from gin-vue-admin ([config.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.yaml), [initialize/db_list.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/db_list.go), [global/global.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/global/global.go)):
+
+```yaml
+# The main database is under mysql; the others go in a list beside it.
+db-list:
+  - disable: true
+    type: ""            # mysql, pgsql, mssql or oracle
+    alias-name: ""      # must be unique in db-list
+    path: ""
+    port: ""
+    db-name: ""
+    username: ""
+    password: ""
+    max-idle-conns: 10
+    max-open-conns: 100
+```
+
+```go
+// initialize/db_list.go
+func DBList() {
+	dbMap := make(map[string]*gorm.DB)
+	for _, info := range global.GVA_CONFIG.DBList {
+		if info.Disable {
+			continue
+		}
+		switch info.Type {
+		case "mysql":
+			dbMap[info.AliasName] = GormMysqlByConfig(config.Mysql{GeneralDB: info.GeneralDB})
+		case "pgsql":
+			dbMap[info.AliasName] = GormPgSqlByConfig(config.Pgsql{GeneralDB: info.GeneralDB})
+		// mssql, oracle …
+		default:
+			continue
+		}
+	}
+	global.GVA_DBList = dbMap
+}
+
+// global/global.go
+func MustGetGlobalDBByDBName(dbname string) *gorm.DB {
+	lock.RLock()
+	defer lock.RUnlock()
+	db, ok := GVA_DBList[dbname]
+	if !ok || db == nil {
+		panic("db no init")
+	}
+	return db
+}
+```
+
+| | gin-vue-admin | loadconf |
+|---|---|---|
+| Declaring | `mysql` for the main database, `db-list` for the others; Redis likewise has `redis` and `redis-list` | `config.Named[config.MySQL]`: `mysql` holds every instance by name |
+| Kinds | one list for every kind; `type` picks the constructor, and an unknown type is skipped without a word | one typed field per kind |
+| Names | unique by a comment; a repeated `alias-name` replaces the earlier database | a repeated name fails `Load` |
+| Changing one instance at deploy time | edit the file | `APP_MYSQL__REPORT__PASSWORD=…` |
+| Getting one | a global map | `MustGet`, `Get` and `All` on the loaded config |
+
+**With loadconf**, changes from example 3: `config.MySQL` becomes `config.Named[config.MySQL]`, and the code picks instances by name.
 
 ```yaml
 # configs/app.yaml
@@ -366,7 +549,42 @@ APP_MYSQL__ARCHIVE__HOST=10.0.0.3    # a new instance "archive", defined by the 
 
 ### 5 Configuration in etcd
 
-**Changes from example 4:** the configuration is read from etcd. The program must know where etcd is before it can read from it, so it loads in two stages.
+**Before**, from [viper](https://github.com/spf13/viper)'s [README](https://github.com/spf13/viper/blob/528f7416c4b56a4948673984b190bf8713f0c3c4/README.md#remote-keyvalue-store-support):
+
+```go
+import _ "github.com/spf13/viper/remote"
+
+var runtime_viper = viper.New()
+
+runtime_viper.AddRemoteProvider("etcd", "http://127.0.0.1:4001", "/config/hugo.yml")
+runtime_viper.SetConfigType("yaml") // because there is no file extension in a stream of bytes
+
+err := runtime_viper.ReadRemoteConfig()
+runtime_viper.Unmarshal(&runtime_conf)
+
+go func() {
+	for {
+		time.Sleep(time.Second * 5) // delay after each request
+
+		err := runtime_viper.WatchRemoteConfig()
+		if err != nil {
+			log.Errorf("unable to read remote config: %v", err)
+			continue
+		}
+
+		runtime_viper.Unmarshal(&runtime_conf)
+	}
+}()
+```
+
+| | viper | loadconf |
+|---|---|---|
+| etcd client | built by viper from an endpoint string, with no parameter for a username or password | the `clientv3.Client` you configure |
+| Layout | one key holding the whole document | one document (`etcd.Key`) or one key per field (`etcd.Prefix`) |
+| Layers | one remote document | several keys and prefixes merged in order, then `config.Env` |
+| Changes | a loop you write: sleep, read, `Unmarshal` into the struct in use | `Watch`, as for files; resumes from the revision of the last read |
+
+**With loadconf**, changes from example 4: the configuration is read from etcd. The program must know where etcd is before it can read from it, so it loads in two stages.
 
 ```go
 package main
@@ -477,7 +695,44 @@ Both source kinds are watchable: under `Loader.Watch` (example 9), a change to t
 
 ### 6 Driver settings
 
-**Changes from example 4:** driver settings beyond the typed fields go in `options` or `params` in the config file; only functions and hooks go in code.
+**Before**, from gin-vue-admin ([config/redis.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/redis.go), [initialize/redis.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/redis.go)):
+
+```go
+// config/redis.go
+type Redis struct {
+	Name         string   `mapstructure:"name" json:"name" yaml:"name"`
+	Addr         string   `mapstructure:"addr" json:"addr" yaml:"addr"`
+	Username     string   `mapstructure:"username" json:"username" yaml:"username"`
+	Password     string   `mapstructure:"password" json:"password" yaml:"password"`
+	DB           int      `mapstructure:"db" json:"db" yaml:"db"`
+	UseCluster   bool     `mapstructure:"useCluster" json:"useCluster" yaml:"useCluster"`
+	ClusterAddrs []string `mapstructure:"clusterAddrs" json:"clusterAddrs" yaml:"clusterAddrs"`
+}
+
+// initialize/redis.go
+if redisCfg.UseCluster {
+	client = redis.NewClusterClient(&redis.ClusterOptions{
+		Addrs:    redisCfg.ClusterAddrs,
+		Username: redisCfg.Username,
+		Password: redisCfg.Password,
+	})
+} else {
+	client = redis.NewClient(&redis.Options{
+		Addr:     redisCfg.Addr,
+		Username: redisCfg.Username,
+		Password: redisCfg.Password,
+		DB:       redisCfg.DB,
+	})
+}
+```
+
+| | gin-vue-admin | loadconf |
+|---|---|---|
+| Driver settings | the fields above; a pool size or timeout takes a new field and a new line of code | any field of `redis.UniversalOptions` under `options` |
+| A misspelled key | ignored | `Open` fails: `unknown options: pool_sise` |
+| Cluster | `useCluster` and a second address list | more than one address in `addrs` |
+
+**With loadconf**, changes from example 4: driver settings beyond the typed fields go in `options` or `params` in the config file; only functions and hooks go in code.
 
 ```yaml
 # configs/app.yaml
@@ -561,7 +816,30 @@ go doc github.com/linzeyan/loadconf/config.Redis   # every field of a settings t
 
 ### 7 Read replicas
 
-**Changes from example 4:** a second instance is attached as a read replica with `conn_gorm.WithMySQLReplicas` (`WithPostgresReplicas` for PostgreSQL).
+**Before**, from [gorm](https://github.com/go-gorm/gorm)'s documentation ([DBResolver](https://gorm.io/docs/dbresolver.html)):
+
+```go
+db, err := gorm.Open(mysql.Open("db1_dsn"), &gorm.Config{})
+
+db.Use(
+	dbresolver.Register(dbresolver.Config{
+		Replicas: []gorm.Dialector{mysql.Open("db3_dsn"), mysql.Open("db4_dsn")},
+		Policy:   dbresolver.RandomPolicy{},
+	}).
+		SetConnMaxIdleTime(time.Hour).
+		SetConnMaxLifetime(24 * time.Hour).
+		SetMaxIdleConns(100).
+		SetMaxOpenConns(200),
+)
+```
+
+| | gorm's documentation | loadconf |
+|---|---|---|
+| DSNs | one string per database, built as in example 1 | one config per instance; `<<: *orders` copies the primary's |
+| Pool | one setting for the whole resolver | each instance's own `max_open_conns` and the rest |
+| Closing | closing `db.DB()` closes only the primary's pool | `conn_gorm.Close` closes every pool |
+
+**With loadconf**, changes from example 4: a second instance is attached as a read replica with `conn_gorm.WithMySQLReplicas` (`WithPostgresReplicas` for PostgreSQL).
 
 ```yaml
 mysql:
@@ -645,7 +923,50 @@ func main() {
 
 ### 8 Logging to several outputs
 
-**Changes from example 3:** `config.Log` and `logger.New` are added. One log call writes the record to every output whose level admits it.
+**Before**, from gin-vue-admin ([config.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.yaml), [config/zap.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/zap.go), [core/zap.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/zap.go), [core/internal/zap_core.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/internal/zap_core.go)):
+
+```yaml
+zap:
+  level: info
+  format: console
+  director: log
+  encode-level: LowercaseColorLevelEncoder
+  log-in-console: true
+  retention-day: -1
+```
+
+```go
+// config/zap.go
+func (c *Zap) Levels() []zapcore.Level {
+	levels := make([]zapcore.Level, 0, 7)
+	level, err := zapcore.ParseLevel(c.Level)
+	if err != nil {
+		level = zapcore.DebugLevel
+	}
+	for ; level <= zapcore.FatalLevel; level++ {
+		levels = append(levels, level)
+	}
+	return levels
+}
+
+// core/zap.go: one core per level. Each writes log/<date>/<level>.log, and
+// stdout too when log-in-console is set.
+levels := global.GVA_CONFIG.Zap.Levels()
+cores := make([]zapcore.Core, 0, len(levels))
+for i := 0; i < len(levels); i++ {
+	cores = append(cores, internal.NewZapCore(levels[i]))
+}
+logger = zap.New(zapcore.NewTee(cores...))
+```
+
+| | gin-vue-admin | loadconf |
+|---|---|---|
+| Outputs | stdout and one file per level per day, fixed in code | named outputs: stdout, stderr, file, syslog, gelf, elasticsearch, otlp |
+| Levels | one global level; a misspelled level means debug | a global level and one per output; a misspelled level fails `Load` |
+| Old files | a directory per day; `retention-day` removes old ones | rotation by size, with `max_backups`, `max_age` and `compress` |
+| At run time | built once at start | `log.Update` changes the levels |
+
+**With loadconf**, changes from example 3: `config.Log` and `logger.New` are added. One log call writes the record to every output whose level admits it.
 
 ```yaml
 # configs/app.yaml (mysql as in example 2)
@@ -756,7 +1077,36 @@ At run time, `log.Update` changes the levels, global and per output, at once (ex
 
 ### 9 Hot reload and reconnecting
 
-**Changes from example 8:** `config.Load` becomes `config.New`, and the loader watches the sources. Log levels follow a change immediately; connections are rebuilt in `OnChange`.
+**Before**, from gin-vue-admin ([core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go), [initialize/reload.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/reload.go)):
+
+```go
+// core/viper.go
+v.WatchConfig()
+v.OnConfigChange(func(e fsnotify.Event) {
+	fmt.Println("config file changed:", e.Name)
+	if err = v.Unmarshal(&global.GVA_CONFIG); err != nil {
+		fmt.Println(err)
+	}
+})
+
+// initialize/reload.go: connections are rebuilt only when Reload is called.
+if global.GVA_DB != nil {
+	db, _ := global.GVA_DB.DB()
+	if err := db.Close(); err != nil {
+		return err
+	}
+}
+global.GVA_DB = Gorm()
+```
+
+| | gin-vue-admin | loadconf |
+|---|---|---|
+| Applying a change | `Unmarshal` writes into `global.GVA_CONFIG` while requests read it: a data race | a new `*Config`, swapped in atomically; `Current()` returns one version or the other |
+| An invalid change | printed; the fields that did decode are already changed | nothing is applied; the current configuration stays and `OnError` runs |
+| Rebuilding a connection | the old one is closed first; if the new one fails, `Gorm()` panics | open the new one first; on failure, keep the old one |
+| An editor saving in several writes | a reload per write | one reload, 500ms after the last change |
+
+**With loadconf**, changes from example 8: `config.Load` becomes `config.New`, and the loader watches the sources. Log levels follow a change immediately; connections are rebuilt in `OnChange`.
 
 ```go
 package main
@@ -875,7 +1225,34 @@ For Redis, close the stale client in its own goroutine (`go stale.Close()`): go-
 
 ### 10 Configuration for each layer
 
-**Changes from example 9:** the whole `Config` is no longer passed around. Each layer declares the settings it needs, and `main` composes them.
+**Before**, from gin-vue-admin ([global/global.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/global/global.go), [service/system/sys_user.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/service/system/sys_user.go), [utils/jwt.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/utils/jwt.go)):
+
+```go
+// global/global.go
+var (
+	GVA_DB     *gorm.DB
+	GVA_DBList map[string]*gorm.DB
+	GVA_REDIS  redis.UniversalClient
+	GVA_CONFIG config.Server
+	GVA_LOG    *zap.Logger
+	// …
+)
+
+// service/system/sys_user.go
+err = global.GVA_DB.Create(&u).Error
+
+// utils/jwt.go
+ep, _ := ParseDuration(global.GVA_CONFIG.JWT.ExpiresTime)
+```
+
+| | gin-vue-admin | loadconf |
+|---|---|---|
+| A layer receives | nothing: it reads package `global` | its own `Config` and the connections it uses |
+| It depends on | the whole `config.Server` and every connection | its own types |
+| Its tests | set the globals first | pass values: `Config{MaxItems: 2}` |
+| A bad value | parsed where it is used; `ParseDuration`'s error is dropped | decoded by the field's type and checked by `validate` when `main` loads |
+
+**With loadconf**, changes from example 9: the whole `Config` is no longer passed around. Each layer declares the settings it needs, and `main` composes them.
 
 `order/order.go`:
 

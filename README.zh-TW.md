@@ -51,11 +51,64 @@ import 路徑就是 module 路徑，package 名稱是路徑的最後一段。
 
 ## 範例
 
-每個範例都在前面某個範例上多加一件事，第一行寫明加了什麼。
+每個範例先列**以前**：熱門開源專案不用 loadconf 時怎麼寫同一件事（節錄自連結的檔案），並用表格列出差異。接著是**用 loadconf**：在前面某個範例上多加一件事，並寫明加了什麼。
 
 ### 1 一個設定檔
 
-`config.yaml`：
+**以前**，節錄自 [gin-vue-admin](https://github.com/flipped-aurora/gin-vue-admin)（[config/db_list.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/db_list.go)、[config/gorm_mysql.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/gorm_mysql.go)、[core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go)、[initialize/gorm_mysql.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/gorm_mysql.go)）：
+
+```go
+// config/db_list.go
+type GeneralDB struct {
+	Path            string `mapstructure:"path" json:"path" yaml:"path"`
+	Port            string `mapstructure:"port" json:"port" yaml:"port"`
+	Config          string `mapstructure:"config" json:"config" yaml:"config"` // DSN 的 query string
+	Dbname          string `mapstructure:"db-name" json:"db-name" yaml:"db-name"`
+	Username        string `mapstructure:"username" json:"username" yaml:"username"`
+	Password        string `mapstructure:"password" json:"password" yaml:"password"`
+	MaxIdleConns    int    `mapstructure:"max-idle-conns" json:"max-idle-conns" yaml:"max-idle-conns"`
+	MaxOpenConns    int    `mapstructure:"max-open-conns" json:"max-open-conns" yaml:"max-open-conns"`
+	ConnMaxLifetime int    `mapstructure:"conn-max-lifetime" json:"conn-max-lifetime" yaml:"conn-max-lifetime"` // 秒
+	// …
+}
+
+// config/gorm_mysql.go
+func (m *Mysql) Dsn() string {
+	return m.Username + ":" + m.Password + "@tcp(" + m.Path + ":" + m.Port + ")/" + m.Dbname + "?" + m.Config
+}
+
+// core/viper.go
+v := viper.New()
+v.SetConfigFile(config)
+v.SetConfigType("yaml")
+if err := v.ReadInConfig(); err != nil {
+	panic(fmt.Errorf("fatal error config file: %w", err))
+}
+if err := v.Unmarshal(&global.GVA_CONFIG); err != nil {
+	panic(fmt.Errorf("fatal error unmarshal config: %w", err))
+}
+
+// initialize/gorm_mysql.go
+db, err := gorm.Open(mysql.New(mysql.Config{DSN: m.Dsn()}), internal.Gorm.Config(m.GeneralDB))
+if err != nil {
+	panic(err)
+}
+sqlDB, _ := db.DB()
+sqlDB.SetMaxIdleConns(m.MaxIdleConns)
+sqlDB.SetMaxOpenConns(m.MaxOpenConns)
+sqlDB.SetConnMaxLifetime(time.Duration(m.ConnMaxLifetime) * time.Second)
+```
+
+| | gin-vue-admin | loadconf |
+|---|---|---|
+| 設定型別 | 每個專案自己寫，每個欄位掛三種 tag | `config.MySQL`；自己的欄位不需要 tag |
+| DSN | 在 `Dsn()` 裡用字串串接；額外參數是一整串原始 query string | 由欄位組成；參數寫成 `params` 底下的 map |
+| 時間長度 | 秒數的 int，在程式裡乘上去 | `5m`、`90s` |
+| 連線池 | 手動設定；沒寫的 key 是 0，而 `SetMaxIdleConns(0)` 代表不保留閒置連線 | 依設定檔套用；沒寫的 key 沿用 database/sql 的預設 |
+| 寫錯 | 拼錯的 key 被忽略；host 空白要到連線時才發現 | 拼錯的 key 記一筆警告；所有不合法的值一次列出，各帶 key 的完整路徑 |
+| 連線 | 沒有期限，除非 query string 設了 `timeout` | 在 `ping_timeout`（3s）內 ping |
+
+**用 loadconf**。`config.yaml`：
 
 ```yaml
 # key 是欄位名稱的 snake_case，產品名稱保持完整：
@@ -118,7 +171,41 @@ func main() {
 
 ### 2 依環境分檔
 
-**和範例 1 的差別**：`config.File("config.yaml")` 換成 `config.Profile("app")`。
+**以前**，節錄自 gin-vue-admin（[core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go)、[core/internal/constant.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/internal/constant.go)）：
+
+```go
+// getConfigPath 挑一個檔案，只讀那一個。
+func getConfigPath() (config string) {
+	flag.StringVar(&config, "c", "", "choose config file.")
+	flag.Parse()
+	if config != "" {
+		return
+	}
+	if env := os.Getenv("GVA_CONFIG"); env != "" {
+		return env
+	}
+	switch gin.Mode() {
+	case gin.DebugMode:
+		config = "config.debug.yaml"
+	case gin.ReleaseMode:
+		config = "config.release.yaml"
+	case gin.TestMode:
+		config = "config.test.yaml"
+	}
+	if _, err := os.Stat(config); err != nil {
+		config = "config.yaml"
+	}
+	return
+}
+```
+
+| | gin-vue-admin | loadconf |
+|---|---|---|
+| 讀哪些檔 | 一個；每個環境的檔案都重複一次共用的 key | `app.yaml`，再把 `app.$ENV.yaml` 逐 key 蓋上去 |
+| 環境沒有自己的檔案 | 改用 `config.yaml` 執行 | `Load` 失敗，並寫出找的是哪個檔 |
+| 由什麼決定 | `-c`，其次 `$GVA_CONFIG`，再其次 gin 的模式 | `$ENV`；`$CONFIG_PATH` 指定單一檔案 |
+
+**用 loadconf**，和範例 1 的差別：`config.File("config.yaml")` 換成 `config.Profile("app")`。
 
 ```
 configs/
@@ -205,7 +292,45 @@ config.Profile("app", config.ProfilePathEnvVar("APP_CONFIG"))     // 指定單�
 
 ### 3 環境變數與密碼
 
-**和範例 2 的差別**：來源多了 `config.DotEnv` 和 `config.Env`；`PaymentKey` 的型別是 `config.Secret`。
+**以前**，節錄自 [go-clean-arch](https://github.com/bxcodec/go-clean-arch)（[app/main.go](https://github.com/bxcodec/go-clean-arch/blob/e06c6d0cb37069b0ef56e3df67f80ca130a1ab82/app/main.go)）：
+
+```go
+func init() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+}
+
+func main() {
+	dbHost := os.Getenv("DATABASE_HOST")
+	dbPort := os.Getenv("DATABASE_PORT")
+	dbUser := os.Getenv("DATABASE_USER")
+	dbPass := os.Getenv("DATABASE_PASS")
+	dbName := os.Getenv("DATABASE_NAME")
+	connection := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", dbUser, dbPass, dbHost, dbPort, dbName)
+	// …
+	timeoutStr := os.Getenv("CONTEXT_TIMEOUT")
+	timeout, err := strconv.Atoi(timeoutStr)
+	if err != nil {
+		log.Println("failed to parse timeout, using default timeout")
+		timeout = defaultTimeout
+	}
+	timeoutContext := time.Duration(timeout) * time.Second
+	// …
+}
+```
+
+| | go-clean-arch | loadconf |
+|---|---|---|
+| `.env` | 必須存在：沒有檔案就結束程序，正式環境也一樣 | `DotEnvOptional()`：有才讀 |
+| 讀取 | 每個設定一次 `os.Getenv` | `config.Env("APP")` 把每個 `APP_` 開頭的變數對到它的 key |
+| 設定檔 | 沒有：每個設定都是環境變數 | 設定檔和環境變數並用；一個變數覆寫一個 key |
+| 型別 | 手動轉換；`CONTEXT_TIMEOUT=2s` 只記一行 log，然後用預設值執行 | 依欄位型別解碼；值不合法時 `Load` 失敗，並寫出 key |
+| 變數沒設 | 空字串，直接組進 DSN | 必填欄位讓 `Load` 失敗 |
+| 密碼 | 一般字串 | `config.Secret`：任何 fmt verb 都印成 `******` |
+
+**用 loadconf**，和範例 2 的差別：來源多了 `config.DotEnv` 和 `config.Env`；`PaymentKey` 的型別是 `config.Secret`。
 
 ```go
 package main
@@ -275,7 +400,65 @@ PORT=9090                     # Port 的 env tag；APP_PORT=9090 也可以，但
 
 ### 4 多個資料庫
 
-**和範例 3 的差別**：`config.MySQL` 換成 `config.Named[config.MySQL]`，程式用名稱挑實例。
+**以前**，節錄自 gin-vue-admin（[config.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.yaml)、[initialize/db_list.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/db_list.go)、[global/global.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/global/global.go)）：
+
+```yaml
+# 主資料庫在 mysql 底下；其他的放在旁邊的清單。
+db-list:
+  - disable: true
+    type: ""            # mysql、pgsql、mssql 或 oracle
+    alias-name: ""      # 在 db-list 裡不可重複
+    path: ""
+    port: ""
+    db-name: ""
+    username: ""
+    password: ""
+    max-idle-conns: 10
+    max-open-conns: 100
+```
+
+```go
+// initialize/db_list.go
+func DBList() {
+	dbMap := make(map[string]*gorm.DB)
+	for _, info := range global.GVA_CONFIG.DBList {
+		if info.Disable {
+			continue
+		}
+		switch info.Type {
+		case "mysql":
+			dbMap[info.AliasName] = GormMysqlByConfig(config.Mysql{GeneralDB: info.GeneralDB})
+		case "pgsql":
+			dbMap[info.AliasName] = GormPgSqlByConfig(config.Pgsql{GeneralDB: info.GeneralDB})
+		// mssql、oracle …
+		default:
+			continue
+		}
+	}
+	global.GVA_DBList = dbMap
+}
+
+// global/global.go
+func MustGetGlobalDBByDBName(dbname string) *gorm.DB {
+	lock.RLock()
+	defer lock.RUnlock()
+	db, ok := GVA_DBList[dbname]
+	if !ok || db == nil {
+		panic("db no init")
+	}
+	return db
+}
+```
+
+| | gin-vue-admin | loadconf |
+|---|---|---|
+| 宣告 | 主資料庫用 `mysql`，其他的用 `db-list`；Redis 同樣分成 `redis` 和 `redis-list` | `config.Named[config.MySQL]`：`mysql` 以名稱存放所有實例 |
+| 種類 | 所有種類共用一個清單；由 `type` 挑建構函式，不認得的 type 直接略過，不留任何訊息 | 每種資料庫一個有型別的欄位 |
+| 名稱 | 靠註解要求不重複；`alias-name` 重複時，後面的資料庫取代前面的 | 名稱重複時 `Load` 失敗 |
+| 部署時改一個實例 | 改檔案 | `APP_MYSQL__REPORT__PASSWORD=…` |
+| 取用 | 全域 map | 載入後的設定上的 `MustGet`、`Get`、`All` |
+
+**用 loadconf**，和範例 3 的差別：`config.MySQL` 換成 `config.Named[config.MySQL]`，程式用名稱挑實例。
 
 ```yaml
 # configs/app.yaml
@@ -364,7 +547,42 @@ APP_MYSQL__ARCHIVE__HOST=10.0.0.3    # 新增實例 archive，完全由環境變
 
 ### 5 設定放在 etcd
 
-**和範例 4 的差別**：設定改從 etcd 讀。程式得先知道 etcd 在哪裡才讀得到，所以分兩段載入。
+**以前**，節錄自 [viper](https://github.com/spf13/viper) 的 [README](https://github.com/spf13/viper/blob/528f7416c4b56a4948673984b190bf8713f0c3c4/README.md#remote-keyvalue-store-support)：
+
+```go
+import _ "github.com/spf13/viper/remote"
+
+var runtime_viper = viper.New()
+
+runtime_viper.AddRemoteProvider("etcd", "http://127.0.0.1:4001", "/config/hugo.yml")
+runtime_viper.SetConfigType("yaml") // 從 byte stream 看不出副檔名
+
+err := runtime_viper.ReadRemoteConfig()
+runtime_viper.Unmarshal(&runtime_conf)
+
+go func() {
+	for {
+		time.Sleep(time.Second * 5) // 每次請求後等待
+
+		err := runtime_viper.WatchRemoteConfig()
+		if err != nil {
+			log.Errorf("unable to read remote config: %v", err)
+			continue
+		}
+
+		runtime_viper.Unmarshal(&runtime_conf)
+	}
+}()
+```
+
+| | viper | loadconf |
+|---|---|---|
+| etcd client | viper 用一個 endpoint 字串建立，沒有帳號密碼的參數 | 你自己設定的 `clientv3.Client` |
+| 存放方式 | 一個 key 存整份文件 | 一整份文件（`etcd.Key`）或每個欄位一個 key（`etcd.Prefix`） |
+| 分層 | 一份遠端文件 | 多個 key 與 prefix 依序合併，最後是 `config.Env` |
+| 變更 | 自己寫迴圈：sleep、讀取、`Unmarshal` 進正在使用的 struct | 和檔案一樣用 `Watch`；從上次讀取的 revision 接續 |
+
+**用 loadconf**，和範例 4 的差別：設定改從 etcd 讀。程式得先知道 etcd 在哪裡才讀得到，所以分兩段載入。
 
 ```go
 package main
@@ -475,7 +693,44 @@ cfg, err := config.Load[Config](ctx, config.From(
 
 ### 6 driver 參數
 
-**和範例 4 的差別**：設定型別以外的 driver 參數寫在設定檔的 `options` 或 `params`；只有函式和 hook 寫在程式裡。
+**以前**，節錄自 gin-vue-admin（[config/redis.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/redis.go)、[initialize/redis.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/redis.go)）：
+
+```go
+// config/redis.go
+type Redis struct {
+	Name         string   `mapstructure:"name" json:"name" yaml:"name"`
+	Addr         string   `mapstructure:"addr" json:"addr" yaml:"addr"`
+	Username     string   `mapstructure:"username" json:"username" yaml:"username"`
+	Password     string   `mapstructure:"password" json:"password" yaml:"password"`
+	DB           int      `mapstructure:"db" json:"db" yaml:"db"`
+	UseCluster   bool     `mapstructure:"useCluster" json:"useCluster" yaml:"useCluster"`
+	ClusterAddrs []string `mapstructure:"clusterAddrs" json:"clusterAddrs" yaml:"clusterAddrs"`
+}
+
+// initialize/redis.go
+if redisCfg.UseCluster {
+	client = redis.NewClusterClient(&redis.ClusterOptions{
+		Addrs:    redisCfg.ClusterAddrs,
+		Username: redisCfg.Username,
+		Password: redisCfg.Password,
+	})
+} else {
+	client = redis.NewClient(&redis.Options{
+		Addr:     redisCfg.Addr,
+		Username: redisCfg.Username,
+		Password: redisCfg.Password,
+		DB:       redisCfg.DB,
+	})
+}
+```
+
+| | gin-vue-admin | loadconf |
+|---|---|---|
+| driver 參數 | 只有上面這些欄位；要設 pool size 或 timeout，就得加欄位、加一行程式 | `redis.UniversalOptions` 的任何欄位，寫在 `options` 底下 |
+| 拼錯的 key | 被忽略 | `Open` 失敗：`unknown options: pool_sise` |
+| Cluster | `useCluster` 加上另一份位址清單 | `addrs` 超過一個位址 |
+
+**用 loadconf**，和範例 4 的差別：設定型別以外的 driver 參數寫在設定檔的 `options` 或 `params`；只有函式和 hook 寫在程式裡。
 
 ```yaml
 # configs/app.yaml
@@ -559,7 +814,30 @@ go doc github.com/linzeyan/loadconf/config.Redis   # 列出設定型別的所有
 
 ### 7 讀寫分離
 
-**和範例 4 的差別**：多一個實例當讀取用的 replica，用 `conn_gorm.WithMySQLReplicas` 掛上（PostgreSQL 用 `WithPostgresReplicas`）。
+**以前**，節錄自 [gorm](https://github.com/go-gorm/gorm) 的文件（[DBResolver](https://gorm.io/docs/dbresolver.html)）：
+
+```go
+db, err := gorm.Open(mysql.Open("db1_dsn"), &gorm.Config{})
+
+db.Use(
+	dbresolver.Register(dbresolver.Config{
+		Replicas: []gorm.Dialector{mysql.Open("db3_dsn"), mysql.Open("db4_dsn")},
+		Policy:   dbresolver.RandomPolicy{},
+	}).
+		SetConnMaxIdleTime(time.Hour).
+		SetConnMaxLifetime(24 * time.Hour).
+		SetMaxIdleConns(100).
+		SetMaxOpenConns(200),
+)
+```
+
+| | gorm 文件 | loadconf |
+|---|---|---|
+| DSN | 每個資料庫一個字串，像範例 1 那樣手組 | 每個實例一份設定；`<<: *orders` 複製 primary 的設定 |
+| 連線池 | 整個 resolver 共用一組設定 | 每個實例有自己的 `max_open_conns` 等設定 |
+| 關閉 | 關 `db.DB()` 只關到 primary 的連線池 | `conn_gorm.Close` 關掉所有連線池 |
+
+**用 loadconf**，和範例 4 的差別：多一個實例當讀取用的 replica，用 `conn_gorm.WithMySQLReplicas` 掛上（PostgreSQL 用 `WithPostgresReplicas`）。
 
 ```yaml
 mysql:
@@ -643,7 +921,50 @@ func main() {
 
 ### 8 Log 輸出到多個地方
 
-**和範例 3 的差別**：多了 `config.Log` 和 `logger.New`。每呼叫一次 log，紀錄就會寫到所有等級符合的輸出。
+**以前**，節錄自 gin-vue-admin（[config.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.yaml)、[config/zap.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/zap.go)、[core/zap.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/zap.go)、[core/internal/zap_core.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/internal/zap_core.go)）：
+
+```yaml
+zap:
+  level: info
+  format: console
+  director: log
+  encode-level: LowercaseColorLevelEncoder
+  log-in-console: true
+  retention-day: -1
+```
+
+```go
+// config/zap.go
+func (c *Zap) Levels() []zapcore.Level {
+	levels := make([]zapcore.Level, 0, 7)
+	level, err := zapcore.ParseLevel(c.Level)
+	if err != nil {
+		level = zapcore.DebugLevel
+	}
+	for ; level <= zapcore.FatalLevel; level++ {
+		levels = append(levels, level)
+	}
+	return levels
+}
+
+// core/zap.go：每個等級一個 core，各自寫入 log/<日期>/<等級>.log；
+// 設了 log-in-console 時也寫到 stdout。
+levels := global.GVA_CONFIG.Zap.Levels()
+cores := make([]zapcore.Core, 0, len(levels))
+for i := 0; i < len(levels); i++ {
+	cores = append(cores, internal.NewZapCore(levels[i]))
+}
+logger = zap.New(zapcore.NewTee(cores...))
+```
+
+| | gin-vue-admin | loadconf |
+|---|---|---|
+| 輸出 | stdout，以及每個等級每天一個檔案，寫死在程式裡 | 具名的輸出：stdout、stderr、file、syslog、gelf、elasticsearch、otlp |
+| 等級 | 一個全域等級；拼錯就當成 debug | 一個全域等級，每個輸出再各有一個；拼錯時 `Load` 失敗 |
+| 舊檔 | 每天一個目錄；`retention-day` 刪掉舊的 | 依大小輪替，搭配 `max_backups`、`max_age`、`compress` |
+| 執行中 | 啟動時建立一次 | `log.Update` 改等級 |
+
+**用 loadconf**，和範例 3 的差別：多了 `config.Log` 和 `logger.New`。每呼叫一次 log，紀錄就會寫到所有等級符合的輸出。
 
 ```yaml
 # configs/app.yaml（mysql 同範例 2）
@@ -751,7 +1072,36 @@ APP_LOG__OUTPUTS__ELASTICSEARCH__DISABLED=true   # 部署時關掉單一輸出
 
 ### 9 熱更新與重新連線
 
-**和範例 8 的差別**：`config.Load` 換成 `config.New`，由 loader 監看來源。log 等級改了立即生效；連線要在 `OnChange` 裡自己重建。
+**以前**，節錄自 gin-vue-admin（[core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go)、[initialize/reload.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/reload.go)）：
+
+```go
+// core/viper.go
+v.WatchConfig()
+v.OnConfigChange(func(e fsnotify.Event) {
+	fmt.Println("config file changed:", e.Name)
+	if err = v.Unmarshal(&global.GVA_CONFIG); err != nil {
+		fmt.Println(err)
+	}
+})
+
+// initialize/reload.go：只有呼叫 Reload 時才重建連線。
+if global.GVA_DB != nil {
+	db, _ := global.GVA_DB.DB()
+	if err := db.Close(); err != nil {
+		return err
+	}
+}
+global.GVA_DB = Gorm()
+```
+
+| | gin-vue-admin | loadconf |
+|---|---|---|
+| 套用變更 | `Unmarshal` 直接寫進 `global.GVA_CONFIG`，同時 request 正在讀它：data race | 產生新的 `*Config`，以原子操作換上；`Current()` 拿到的不是舊版就是新版 |
+| 不合法的變更 | 印出錯誤；解碼成功的欄位已經改掉了 | 什麼都不套用；維持目前的設定，並執行 `OnError` |
+| 重建連線 | 先關掉舊的；新的開不起來時 `Gorm()` panic | 先開新的；失敗就保留舊的 |
+| 編輯器分幾次寫入存檔 | 每次寫入都重新載入 | 最後一次變更後 500ms 載入一次 |
+
+**用 loadconf**，和範例 8 的差別：`config.Load` 換成 `config.New`，由 loader 監看來源。log 等級改了立即生效；連線要在 `OnChange` 裡自己重建。
 
 ```go
 package main
@@ -862,7 +1212,34 @@ Redis 的舊 client 請在獨立的 goroutine 裡關閉（`go stale.Close()`）�
 
 ### 10 把設定注入各層
 
-**和範例 9 的差別**：不再把整份 `Config` 傳來傳去。每一層宣告自己需要的設定，由 `main` 組起來。
+**以前**，節錄自 gin-vue-admin（[global/global.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/global/global.go)、[service/system/sys_user.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/service/system/sys_user.go)、[utils/jwt.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/utils/jwt.go)）：
+
+```go
+// global/global.go
+var (
+	GVA_DB     *gorm.DB
+	GVA_DBList map[string]*gorm.DB
+	GVA_REDIS  redis.UniversalClient
+	GVA_CONFIG config.Server
+	GVA_LOG    *zap.Logger
+	// …
+)
+
+// service/system/sys_user.go
+err = global.GVA_DB.Create(&u).Error
+
+// utils/jwt.go
+ep, _ := ParseDuration(global.GVA_CONFIG.JWT.ExpiresTime)
+```
+
+| | gin-vue-admin | loadconf |
+|---|---|---|
+| 一層拿到什麼 | 什麼都不拿：直接讀 `global` package | 自己的 `Config`，以及它用到的連線 |
+| 它依賴 | 整份 `config.Server` 和所有連線 | 只有自己的型別 |
+| 它的測試 | 先設好全域變數 | 直接傳值：`Config{MaxItems: 2}` |
+| 不合法的值 | 用到時才解析；`ParseDuration` 的錯誤被丟掉 | `main` 載入時依欄位型別解碼，並由 `validate` 檢查 |
+
+**用 loadconf**，和範例 9 的差別：不再把整份 `Config` 傳來傳去。每一層宣告自己需要的設定，由 `main` 組起來。
 
 `order/order.go`：
 
