@@ -20,6 +20,10 @@
   8. [Log 輸出到多個地方](#8-log-輸出到多個地方)
   9. [熱更新與重新連線](#9-熱更新與重新連線)
   10. [把設定注入各層](#10-把設定注入各層)
+  11. [自訂設定檔路徑，沿用既有的 struct tag](#11-自訂設定檔路徑沿用既有的-struct-tag)
+  12. [自訂格式](#12-自訂格式)
+  13. [自訂型別與檢查](#13-自訂型別與檢查)
+  14. [自訂來源](#14-自訂來源)
 - [參考](#參考)
   - [來源與優先順序](#來源與優先順序)
   - [哪些來源會看 ENV](#哪些來源會看-env)
@@ -51,11 +55,27 @@ import 路徑就是 module 路徑，package 名稱是路徑的最後一段。
 
 ## 範例
 
-每個範例先列**以前**：熱門開源專案不用 loadconf 時怎麼寫同一件事（節錄自連結的檔案），並用表格列出差異。接著是**用 loadconf**：在前面某個範例上多加一件事，並寫明加了什麼。
+每個範例先列**以前**：熱門開源專案不用 loadconf 時怎麼寫同一件事，設定檔和程式碼都節錄自連結的檔案，並用表格列出差異。接著是**用 loadconf**，同樣附上設定檔和程式碼：在前面某個範例上多加一件事，並寫明加了什麼。
 
 ### 1 一個設定檔
 
-**以前**，節錄自 [gin-vue-admin](https://github.com/flipped-aurora/gin-vue-admin)（[config/db_list.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/db_list.go)、[config/gorm_mysql.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/gorm_mysql.go)、[core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go)、[initialize/gorm_mysql.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/gorm_mysql.go)）：
+**以前**，節錄自 [gin-vue-admin](https://github.com/flipped-aurora/gin-vue-admin)（[config.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.yaml#L103-L116)、[config/db_list.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/db_list.go)、[config/gorm_mysql.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/gorm_mysql.go)、[core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go)、[initialize/gorm_mysql.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/gorm_mysql.go)）：
+
+```yaml
+# config.yaml
+mysql:
+    path: ""
+    port: ""
+    config: ""                # DSN 的 query string
+    db-name: ""
+    username: ""
+    password: ""
+    max-idle-conns: 10
+    max-open-conns: 100
+    conn-max-lifetime: 0      # 秒
+    log-mode: ""
+    log-zap: false
+```
 
 ```go
 // config/db_list.go
@@ -171,7 +191,41 @@ func main() {
 
 ### 2 依環境分檔
 
-**以前**，節錄自 gin-vue-admin（[core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go)、[core/internal/constant.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/internal/constant.go)）：
+**以前**，節錄自 gin-vue-admin（[config.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.yaml)、[config.docker.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.docker.yaml)、[Dockerfile](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/Dockerfile#L31)、[core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go)、[core/internal/constant.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/internal/constant.go)）。repo 裡有兩份完整的設定檔；Dockerfile 執行的是 `./server -c config.docker.yaml`。
+
+```yaml
+# config.yaml：291 行
+redis:
+    useCluster: false
+    addr: 127.0.0.1:6379
+    username: ""
+    password: ""
+    db: 0
+# …
+system:
+    # …
+    disable-auto-migrate: false
+mysql:
+    # …
+    conn-max-lifetime: 0
+```
+
+```yaml
+# config.docker.yaml：282 行，為了改位址而複製一份 config.yaml
+redis:
+    useCluster: false
+    addr: 177.7.0.14:6379
+    # 少了 username
+    password: ""
+    db: 0
+# … 除了位址都一樣
+system:
+    # …
+    # 少了 disable-auto-migrate
+mysql:
+    # …
+    # 少了 conn-max-lifetime，其他五個資料庫區段也一樣
+```
 
 ```go
 // getConfigPath 挑一個檔案，只讀那一個。
@@ -202,6 +256,7 @@ func getConfigPath() (config string) {
 | | gin-vue-admin | loadconf |
 |---|---|---|
 | 讀哪些檔 | 一個；每個環境的檔案都重複一次共用的 key | `app.yaml`，再把 `app.$ENV.yaml` 逐 key 蓋上去 |
+| 之後新增的 key | 每份複本都要手動補；`config.docker.yaml` 已經少了三個 | 在 `app.yaml` 加一次 |
 | 環境沒有自己的檔案 | 改用 `config.yaml` 執行 | `Load` 失敗，並寫出找的是哪個檔 |
 | 由什麼決定 | `-c`，其次 `$GVA_CONFIG`，再其次 gin 的模式 | `$ENV`；`$CONFIG_PATH` 指定單一檔案 |
 
@@ -292,7 +347,19 @@ config.Profile("app", config.ProfilePathEnvVar("APP_CONFIG"))     // 指定單�
 
 ### 3 環境變數與密碼
 
-**以前**，節錄自 [go-clean-arch](https://github.com/bxcodec/go-clean-arch)（[app/main.go](https://github.com/bxcodec/go-clean-arch/blob/e06c6d0cb37069b0ef56e3df67f80ca130a1ab82/app/main.go)）：
+**以前**，節錄自 [go-clean-arch](https://github.com/bxcodec/go-clean-arch)（[example.env](https://github.com/bxcodec/go-clean-arch/blob/e06c6d0cb37069b0ef56e3df67f80ca130a1ab82/example.env)、[app/main.go](https://github.com/bxcodec/go-clean-arch/blob/e06c6d0cb37069b0ef56e3df67f80ca130a1ab82/app/main.go)）。沒有設定檔，每個設定都是環境變數；`example.env` 複製成 `.env` 使用：
+
+```bash
+# example.env
+DEBUG = True
+SERVER_ADDRESS = ":9090"
+CONTEXT_TIMEOUT = 2
+DATABASE_HOST = "localhost"
+DATABASE_PORT = "3306"
+DATABASE_USER = "user"
+DATABASE_PASS = "password"
+DATABASE_NAME = "article"
+```
 
 ```go
 func init() {
@@ -330,7 +397,16 @@ func main() {
 | 變數沒設 | 空字串，直接組進 DSN | 必填欄位讓 `Load` 失敗 |
 | 密碼 | 一般字串 | `config.Secret`：任何 fmt verb 都印成 `******` |
 
-**用 loadconf**，和範例 2 的差別：來源多了 `config.DotEnv` 和 `config.Env`；`PaymentKey` 的型別是 `config.Secret`。
+**用 loadconf**，和範例 2 的差別：來源多了 `config.DotEnv` 和 `config.Env`；`PaymentKey` 的型別是 `config.Secret`。範例 2 的設定檔放所有部署共用的設定；環境變數只帶各部署不同的部分，例如密碼。
+
+```yaml
+# configs/app.yaml：和範例 2 相同，裡面沒有密碼
+port: 8080
+mysql:
+  user: app
+  database: shop
+  max_open_conns: 20
+```
 
 ```go
 package main
@@ -547,7 +623,7 @@ APP_MYSQL__ARCHIVE__HOST=10.0.0.3    # 新增實例 archive，完全由環境變
 
 ### 5 設定放在 etcd
 
-**以前**，節錄自 [viper](https://github.com/spf13/viper) 的 [README](https://github.com/spf13/viper/blob/528f7416c4b56a4948673984b190bf8713f0c3c4/README.md#remote-keyvalue-store-support)：
+**以前**，節錄自 [viper](https://github.com/spf13/viper) 的 [README](https://github.com/spf13/viper/blob/528f7416c4b56a4948673984b190bf8713f0c3c4/README.md#remote-keyvalue-store-support)。整份設定是一個 YAML 文件，存成 etcd key `/config/hugo.yml` 的值；README 沒有列出文件內容。
 
 ```go
 import _ "github.com/spf13/viper/remote"
@@ -583,6 +659,24 @@ go func() {
 | 變更 | 自己寫迴圈：sleep、讀取、`Unmarshal` 進正在使用的 struct | 和檔案一樣用 `Watch`；從上次讀取的 revision 接續 |
 
 **用 loadconf**，和範例 4 的差別：設定改從 etcd 讀。程式得先知道 etcd 在哪裡才讀得到，所以分兩段載入。
+
+```bash
+# 環境變數只說明 etcd 在哪裡，其他什麼都不放。
+APP_ETCD__ENDPOINTS=etcd1:2379,etcd2:2379
+APP_ETCD__USERNAME=order-service
+APP_ETCD__PASSWORD=s3cret
+```
+
+```yaml
+# etcd key /order-service/prod/config.yaml 的值：內容和範例 4 的
+# configs/app.yaml 是同一種文件
+port: 9090
+mysql:
+  orders:
+    host: db1
+    user: app
+    database: orders
+```
 
 ```go
 package main
@@ -693,7 +787,21 @@ cfg, err := config.Load[Config](ctx, config.From(
 
 ### 6 driver 參數
 
-**以前**，節錄自 gin-vue-admin（[config/redis.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/redis.go)、[initialize/redis.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/redis.go)）：
+**以前**，節錄自 gin-vue-admin（[config.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.yaml#L21-L34)、[config/redis.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/redis.go)、[initialize/redis.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/redis.go)）：
+
+```yaml
+# config.yaml：程式讀的 key 全在這裡，沒有別的
+redis:
+    useCluster: false
+    addr: 127.0.0.1:6379      # useCluster 為 true 時不使用
+    username: ""
+    password: ""
+    db: 0
+    clusterAddrs:
+        - "172.21.0.3:7000"
+        - "172.21.0.4:7001"
+        - "172.21.0.2:7002"
+```
 
 ```go
 // config/redis.go
@@ -814,7 +922,7 @@ go doc github.com/linzeyan/loadconf/config.Redis   # 列出設定型別的所有
 
 ### 7 讀寫分離
 
-**以前**，節錄自 [gorm](https://github.com/go-gorm/gorm) 的文件（[DBResolver](https://gorm.io/docs/dbresolver.html)）：
+**以前**，節錄自 [gorm](https://github.com/go-gorm/gorm) 的文件（[DBResolver](https://gorm.io/docs/dbresolver.html)）。沒有設定檔：DSN 和連線池都寫在程式裡，要搬進設定檔得由各專案自己處理。
 
 ```go
 db, err := gorm.Open(mysql.Open("db1_dsn"), &gorm.Config{})
@@ -1072,7 +1180,16 @@ APP_LOG__OUTPUTS__ELASTICSEARCH__DISABLED=true   # 部署時關掉單一輸出
 
 ### 9 熱更新與重新連線
 
-**以前**，節錄自 gin-vue-admin（[core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go)、[initialize/reload.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/reload.go)）：
+**以前**，節錄自 gin-vue-admin（[config.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.yaml)、[core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go)、[initialize/reload.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/reload.go)）。服務執行中修改 `config.yaml`，以及下面的程式碼怎麼處理這次修改：
+
+```yaml
+# config.yaml
+zap:
+    level: debug              # 原本是 info：GVA_CONFIG 改了；啟動時建好的 logger 仍是 info
+mysql:
+    path: 10.0.0.2            # GVA_CONFIG 改了；GVA_DB 沿用舊連線，直到呼叫 Reload
+    max-open-conns: abc       # Unmarshal 失敗，但它前面的 key 已經寫進去了
+```
 
 ```go
 // core/viper.go
@@ -1101,7 +1218,17 @@ global.GVA_DB = Gorm()
 | 重建連線 | 先關掉舊的；新的開不起來時 `Gorm()` panic | 先開新的；失敗就保留舊的 |
 | 編輯器分幾次寫入存檔 | 每次寫入都重新載入 | 最後一次變更後 500ms 載入一次 |
 
-**用 loadconf**，和範例 8 的差別：`config.Load` 換成 `config.New`，由 loader 監看來源。log 等級改了立即生效；連線要在 `OnChange` 裡自己重建。
+**用 loadconf**，和範例 8 的差別：`config.Load` 換成 `config.New`，由 loader 監看來源。log 等級改了立即生效；連線要在 `OnChange` 裡自己重建。同樣的修改：
+
+```yaml
+# configs/app.yaml
+log:
+  level: debug              # 原本是 info：OnChange 呼叫 log.Update，debug 紀錄開始出現
+mysql:
+  host: 10.0.0.2            # OnChange 對 10.0.0.2 開好連線池，再換上去
+  max_open_conns: abc       # 整次重新載入被拒絕：上面的修改都不套用，執行 OnError
+max_items: 50               # 從下一個 request 起，loader.Current().MaxItems 回傳 50
+```
 
 ```go
 package main
@@ -1212,7 +1339,16 @@ Redis 的舊 client 請在獨立的 goroutine 裡關閉（`go stale.Close()`）�
 
 ### 10 把設定注入各層
 
-**以前**，節錄自 gin-vue-admin（[global/global.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/global/global.go)、[service/system/sys_user.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/service/system/sys_user.go)、[utils/jwt.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/utils/jwt.go)）：
+**以前**，節錄自 gin-vue-admin（[config.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.yaml#L3-L8)、[global/global.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/global/global.go)、[service/system/sys_user.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/service/system/sys_user.go)、[utils/jwt.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/utils/jwt.go)）：
+
+```yaml
+# config.yaml
+jwt:
+    signing-key: qmPlus
+    expires-time: 7d          # 字串，到產生 token 的地方才用 utils.ParseDuration 解析
+    buffer-time: 1d
+    issuer: qmPlus
+```
 
 ```go
 // global/global.go
@@ -1240,6 +1376,17 @@ ep, _ := ParseDuration(global.GVA_CONFIG.JWT.ExpiresTime)
 | 不合法的值 | 用到時才解析；`ParseDuration` 的錯誤被丟掉 | `main` 載入時依欄位型別解碼，並由 `validate` 檢查 |
 
 **用 loadconf**，和範例 9 的差別：不再把整份 `Config` 傳來傳去。每一層宣告自己需要的設定，由 `main` 組起來。
+
+```yaml
+# configs/app.yaml：每一層一個區段，名稱就是 main 組合它時用的欄位
+mysql:
+  host: 127.0.0.1
+  user: app
+  database: shop
+order:
+  max_items: 50             # main 載入時由 validate:"min=1" 檢查
+  timeout: 2s               # 解碼成 time.Duration；寫 "2 seconds" 會讓 Load 失敗
+```
 
 `order/order.go`：
 
@@ -1360,6 +1507,640 @@ func TestPlaceRejectsTooManyItems(t *testing.T) {
 }
 ```
 
+### 11 自訂設定檔路徑，沿用既有的 struct tag
+
+**以前**，節錄自 [etcd](https://github.com/etcd-io/etcd)（[etcd.conf.yml.sample](https://github.com/etcd-io/etcd/blob/1573d59416efa220421c451f5266b24a5d8374ef/etcd.conf.yml.sample#L15-L43)、[server/etcdmain/config.go](https://github.com/etcd-io/etcd/blob/1573d59416efa220421c451f5266b24a5d8374ef/server/etcdmain/config.go#L136-L150)、[server/embed/config.go](https://github.com/etcd-io/etcd/blob/1573d59416efa220421c451f5266b24a5d8374ef/server/embed/config.go#L461-L476)）：
+
+```yaml
+# etcd.conf.yml.sample
+# Time (in milliseconds) of a heartbeat interval.
+heartbeat-interval: 100
+
+# Time (in milliseconds) for an election to timeout.
+election-timeout: 1000
+
+# List of comma separated URLs to listen on for peer traffic.
+listen-peer-urls: http://localhost:2380
+
+# List of comma separated URLs to listen on for client traffic.
+listen-client-urls: http://localhost:2379
+
+# List of this member's client URLs to advertise to the public.
+# The URLs needed to be a comma-separated list.
+advertise-client-urls: http://localhost:2379
+```
+
+```go
+// server/etcdmain/config.go
+fs.StringVar(&cfg.configFile, "config-file", "", "Path to the server configuration file. Note that if a configuration file is provided, other command line flags and environment variables will be ignored.")
+// …
+if cfg.configFile == "" {
+	cfg.configFile = os.Getenv(flags.FlagToEnv("ETCD", "config-file"))
+}
+if cfg.configFile != "" {
+	err = cfg.configFromFile(cfg.configFile)
+} else {
+	err = cfg.configFromCmdLine()
+}
+
+// server/embed/config.go
+type configJSON struct {
+	ListenPeerURLs      string `json:"listen-peer-urls"`
+	ListenClientURLs    string `json:"listen-client-urls"`
+	AdvertiseClientURLs string `json:"advertise-client-urls"`
+	// …
+}
+
+func (cfg *configYAML) configFromFile(path string) error {
+	b, err := os.ReadFile(path)
+	// …
+	err = yaml.Unmarshal(b, cfg)
+	// …
+	if cfg.configJSON.ListenPeerURLs != "" {
+		u, err := types.NewURLs(strings.Split(cfg.configJSON.ListenPeerURLs, ","))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "unexpected error setting up listen-peer-urls: %v\n", err)
+			os.Exit(1)
+		}
+		cfg.Config.ListenPeerUrls = u
+	}
+	// … 同樣的區塊還有五份，每個 URL 清單一份；advertise-client-urls 那份
+	// 出錯時印的是 "advertise-peer-urls"
+}
+```
+
+| | etcd | loadconf |
+|---|---|---|
+| 路徑 | `--config-file`，其次 `$ETCD_CONFIG_FILE` | 自己的 flag，傳給 `config.File` |
+| struct tag | `json` tag，經 `sigs.k8s.io/yaml` 讀取 | 同一組 `json` tag，加上 `config.WithTagName("json")` |
+| URL 清單 | 逗號分隔的字串，載入後才切開、解析，每個清單複製一份區塊 | `[]string`，可以寫成 YAML 清單或逗號分隔的字串；`validate:"dive,url"` 逐項檢查 |
+| URL 寫錯 | 在回傳 `error` 的函式裡 `os.Exit(1)`；第一個寫錯的清單就讓程序結束 | `Load` 一次回傳所有寫錯的 URL，各帶自己的 key |
+
+**用 loadconf**，和範例 1 的差別：路徑來自 flag，struct 沿用 `json` tag 已經宣告好的 key 名稱。設定檔不用改。
+
+```yaml
+# /etc/etcd/etcd.conf.yml：和以前同一份檔案
+heartbeat-interval: 100
+election-timeout: 1000
+listen-peer-urls: http://localhost:2380
+listen-client-urls: http://localhost:2379,http://10.0.0.5:2379   # 逗號分隔的字串照樣可以用
+advertise-client-urls: http://localhost:2379
+```
+
+```go
+package main
+
+import (
+	"context"
+	"flag"
+	"log"
+
+	"github.com/linzeyan/loadconf/config"
+)
+
+// json tag 決定 key 名稱，所以既有的設定檔原樣就能載入。tag 裡沒寫 key 的
+// 欄位改用 snake_case。
+type ServerConfig struct {
+	HeartbeatInterval   int      `json:"heartbeat-interval" default:"100" validate:"min=1"` // 毫秒
+	ElectionTimeout     int      `json:"election-timeout" default:"1000" validate:"min=1"`
+	ListenPeerURLs      []string `json:"listen-peer-urls" validate:"min=1,dive,url"`
+	ListenClientURLs    []string `json:"listen-client-urls" validate:"min=1,dive,url"`
+	AdvertiseClientURLs []string `json:"advertise-client-urls" validate:"dive,url"`
+}
+
+func main() {
+	path := flag.String("config-file", "/etc/etcd/etcd.conf.yml", "path to the configuration file")
+	flag.Parse()
+
+	// 設定檔裡對不到欄位的 key（例如 etcd 完整範例裡的 data-dir）會記一筆
+	// 警告；config.WithStrict() 會讓它變成錯誤。
+	cfg, err := config.Load[ServerConfig](context.Background(),
+		config.WithTagName("json"),
+		config.From(config.File(*path)),
+	)
+	if err != nil {
+		// 一次列出所有寫錯的項目，例如
+		//   config: invalid: listen-peer-urls[1]: does not satisfy "url"
+		log.Fatal(err)
+	}
+	log.Printf("client URLs: %v", cfg.ListenClientURLs) // [http://localhost:2379 http://10.0.0.5:2379]
+}
+```
+
+`File` 的選項：
+
+```go
+config.File(path, config.FileFormat("yaml")) // 副檔名看不出格式：etcd.conf、app.cfg
+config.File(path, config.Optional())         // 檔案不存在時當成空的，而不是失敗
+config.WithTagName("yaml")                   // key 名稱改讀 yaml tag，不讀 config tag
+```
+
+### 12 自訂格式
+
+**以前**，節錄自 [Gitea](https://github.com/go-gitea/gitea)（[custom/conf/app.example.ini](https://github.com/go-gitea/gitea/blob/8465bed99464c5ef4abc8e0a6944911d1c5ef358/custom/conf/app.example.ini#L58-L89)、[modules/setting/server.go](https://github.com/go-gitea/gitea/blob/8465bed99464c5ef4abc8e0a6944911d1c5ef358/modules/setting/server.go#L151-L224)、[modules/setting/config_provider.go](https://github.com/go-gitea/gitea/blob/8465bed99464c5ef4abc8e0a6944911d1c5ef358/modules/setting/config_provider.go#L113-L127)），用 [gopkg.in/ini.v1](https://github.com/go-ini/ini) 讀 `app.ini`：
+
+```ini
+; custom/conf/app.example.ini：預設值以註解的形式寫在這裡
+[server]
+;; The protocol the server listens on. One of "http", "https", "http+unix", "fcgi" or "fcgi+unix".
+;PROTOCOL = http
+;HTTP_ADDR = 0.0.0.0
+;; The port to listen on for "http" or "https" protocol. Leave empty when using a unix socket.
+;HTTP_PORT = 3000
+;CERT_FILE = https/cert.pem
+;KEY_FILE = https/key.pem
+;GRACEFUL_HAMMER_TIME = 60s
+```
+
+```go
+// modules/setting/server.go：每個 key 一行，預設值再寫一次
+HTTPAddr = sec.Key("HTTP_ADDR").MustString("0.0.0.0")
+HTTPPort = sec.Key("HTTP_PORT").MustString("3000")
+protocolCfg := sec.Key("PROTOCOL").String()
+switch protocolCfg {
+case "", "http":
+	Protocol = HTTP
+case "https":
+	Protocol = HTTPS
+	CertFile = sec.Key("CERT_FILE").String()
+	KeyFile = sec.Key("KEY_FILE").String()
+	// …
+}
+GracefulHammerTime = sec.Key("GRACEFUL_HAMMER_TIME").MustDuration(60 * time.Second)
+
+// modules/setting/config_provider.go
+func (k *iniConfigKey) MustDuration(defaultVal ...time.Duration) time.Duration {
+	s := k.String()
+	v, err := strconv.ParseInt(s, 10, 64)
+	if err == nil {
+		d := time.Duration(v) * time.Second
+		k.key.SetValue(d.String())
+		return d
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		d = util.OptionalArg(defaultVal)
+	}
+	k.key.SetValue(d.String())
+	return d
+}
+```
+
+| | Gitea | loadconf |
+|---|---|---|
+| 讀取 | 每個 key 一行 `sec.Key(…).MustXxx(…)`，寫進 package 變數 | 一個 struct；格式只要產生一棵樹 |
+| 預設值 | 寫兩次：`app.example.ini` 的註解一次，`MustXxx` 的參數一次 | 一次，寫在 `default` tag |
+| 值不合法 | `GRACEFUL_HAMMER_TIME = 60x` 不吭一聲地變成 60s | `Load` 失敗：`server.graceful_hammer_time: invalid duration "60x"` |
+| port | 字串 | `int`，由 `validate` 檢查 |
+
+**用 loadconf**，和範例 1 的差別：格式註冊一次，之後 `File` 和 `Profile` 就像接受 `.yaml` 一樣接受 `.ini`。loadconf 不依賴任何 INI 函式庫；parser 由你提供，這裡用 gopkg.in/ini.v1 寫。
+
+```ini
+; custom/conf/app.ini：key 和欄位比對不分大小寫，所以 HTTP_PORT 就是 http_port
+[server]
+PROTOCOL = https
+HTTP_PORT = 3000
+CERT_FILE = /etc/gitea/cert.pem
+KEY_FILE = /etc/gitea/key.pem
+GRACEFUL_HAMMER_TIME = 60s
+```
+
+```go
+package main
+
+import (
+	"context"
+	"log"
+	"maps"
+	"time"
+
+	"gopkg.in/ini.v1"
+
+	"github.com/linzeyan/loadconf/config"
+)
+
+type Config struct {
+	Server struct {
+		Protocol           string        `default:"http" validate:"oneof=http https"`
+		HTTPAddr           string        `default:"0.0.0.0"`
+		HTTPPort           int           `default:"3000" validate:"min=1,max=65535"`
+		CertFile           string
+		KeyFile            string
+		GracefulHammerTime time.Duration `default:"60s"`
+	}
+}
+
+// parseINI 把 section 轉成 map，值一律是字串。loadconf 會依欄位型別轉換
+// 這些字串，和處理環境變數的方式相同。
+func parseINI(data []byte) (map[string]any, error) {
+	f, err := ini.Load(data)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]any{}
+	for _, sec := range f.Sections() {
+		m := map[string]any{}
+		for _, k := range sec.Keys() {
+			m[k.Name()] = k.Value()
+		}
+		if sec.Name() == ini.DefaultSection {
+			maps.Copy(out, m) // 第一個 [section] 之前的 key
+		} else {
+			out[sec.Name()] = m
+		}
+	}
+	return out, nil
+}
+
+func main() {
+	// 在第一次 Load 之前註冊。再註冊一次 "yaml" 或 ".yml" 會取代內建的 parser。
+	config.RegisterFormat("ini", parseINI, ".ini")
+
+	cfg, err := config.Load[Config](context.Background(),
+		config.From(config.File("custom/conf/app.ini")))
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("listening on %s:%d", cfg.Server.HTTPAddr, cfg.Server.HTTPPort)
+}
+```
+
+所有以格式名稱指定的來源都共用同一個 parser：`config.Bytes("ini", data)`，以及註冊副檔名之後的 `etcd.Key(cli, "/gitea/app.ini")`。
+
+### 13 自訂型別與檢查
+
+**以前**，節錄自 [Dex](https://github.com/dexidp/dex)（[config.yaml.dist](https://github.com/dexidp/dex/blob/b02ead0ba87a320f3328c6860ea45f5b6314e6bd/config.yaml.dist#L50-L96)、[cmd/dex/config.go](https://github.com/dexidp/dex/blob/b02ead0ba87a320f3328c6860ea45f5b6314e6bd/cmd/dex/config.go#L90-L132)、[cmd/dex/serve.go](https://github.com/dexidp/dex/blob/b02ead0ba87a320f3328c6860ea45f5b6314e6bd/cmd/dex/serve.go#L314-L415)）：
+
+```yaml
+# config.yaml.dist
+web:
+  http: 127.0.0.1:5556
+
+  # Uncomment to enable HTTPS endpoint.
+  # https: 127.0.0.1:5554
+  # tlsCert: /etc/dex/tls.crt
+  # tlsKey: /etc/dex/tls.key
+  # tlsMinVersion: 1.2
+  # tlsMaxVersion: 1.3
+
+# Expiration configuration for tokens, signing keys, etc.
+# expiry:
+#   deviceRequests: "5m"
+#   idTokens: "24h"
+```
+
+```go
+// cmd/dex/config.go
+type Expiry struct {
+	IDTokens       string `json:"idTokens"`
+	AuthRequests   string `json:"authRequests"`
+	DeviceRequests string `json:"deviceRequests"`
+	// …
+}
+
+func (c Config) Validate() error {
+	checks := []struct {
+		bad    bool
+		errMsg string
+	}{
+		{c.Web.HTTP == "" && c.Web.HTTPS == "", "must supply a HTTP/HTTPS  address to listen on"},
+		{c.Web.HTTPS != "" && c.Web.TLSCert == "", "no cert specified for HTTPS"},
+		{c.Web.HTTPS != "" && c.Web.TLSKey == "", "no private key specified for HTTPS"},
+		{c.Web.TLSMinVersion != "" && c.Web.TLSMinVersion != "1.2" && c.Web.TLSMinVersion != "1.3", "supported TLS versions are: 1.2, 1.3"},
+		{c.Web.TLSMaxVersion != "" && c.Web.TLSMaxVersion != "1.2" && c.Web.TLSMaxVersion != "1.3", "supported TLS versions are: 1.2, 1.3"},
+		{c.Web.TLSMaxVersion != "" && c.Web.TLSMinVersion != "" && c.Web.TLSMinVersion > c.Web.TLSMaxVersion, "TLSMinVersion greater than TLSMaxVersion"},
+		// … gRPC 的 TLS 再檢查一次同樣的項目
+	}
+	// …
+}
+
+// cmd/dex/serve.go：時間長度在用到的地方才解析，那時 storage 已經開啟了
+idTokensValidFor := 24 * time.Hour // default
+if c.Expiry.IDTokens != "" {
+	var err error
+	idTokensValidFor, err = time.ParseDuration(c.Expiry.IDTokens)
+	if err != nil {
+		return fmt.Errorf("invalid config value %q for id token expiry: %v", c.Expiry.IDTokens, err)
+	}
+}
+// … AuthRequests 和 DeviceRequests 也是同樣的區塊
+
+allowedTLSVersions := map[string]int{ // 為了轉換，版本清單又寫一次
+	"1.2": tls.VersionTLS12,
+	"1.3": tls.VersionTLS13,
+}
+```
+
+| | Dex | loadconf |
+|---|---|---|
+| 時間長度 | 字串，在用到的地方才解析；「解析再包錯誤」的區塊寫了三次 | `time.Duration` 欄位，由 `Load` 解碼 |
+| 時間長度寫錯 | storage 開啟之後才回報 | 任何東西開啟之前 `Load` 就失敗 |
+| 預設值 | `serve.go` 裡的 `24 * time.Hour // default`；struct 上看不到 | 欄位上的 `default:"24h"` |
+| TLS 版本 | `Validate` 以字串接受，`serve.go` 再用第二份清單轉換 | 一個型別：`UnmarshalText` 同時接受和轉換 |
+| 錯誤訊息 | 沒有 key：`supported TLS versions are: 1.2, 1.3` 對應四個欄位 | 每個錯誤都帶 key 的路徑 |
+
+**用 loadconf**，和範例 1 的差別：欄位型別自己解碼；只關於單一值的規則放在 `validate` tag，牽涉多個欄位的規則放在 `Validate` 方法。
+
+```yaml
+# configs/app.yaml
+web:
+  http: 127.0.0.1:5556
+  https: 127.0.0.1:5554
+  tls_cert: /etc/dex/tls.crt
+  tls_key: /etc/dex/tls.key
+  tls_min_version: 1.2       # 由 TLSVersion.UnmarshalText 解碼
+expiry:
+  id_tokens: 24h
+  device_requests: 5m
+```
+
+```go
+package main
+
+import (
+	"context"
+	"crypto/tls"
+	"errors"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/linzeyan/loadconf/config"
+)
+
+// TLSVersion 把 "1.2" 或 "1.3" 解碼成 crypto/tls 的常數：允許的版本清單和
+// 轉換是同一段程式。實作 encoding.TextUnmarshaler 的型別，可以從任何來源的
+// 字串解碼。
+type TLSVersion uint16
+
+func (v *TLSVersion) UnmarshalText(b []byte) error {
+	switch string(b) {
+	case "1.2":
+		*v = tls.VersionTLS12
+	case "1.3":
+		*v = tls.VersionTLS13
+	default:
+		return fmt.Errorf("unsupported TLS version %q (want 1.2 or 1.3)", b)
+	}
+	return nil
+}
+
+type Web struct {
+	HTTP          string     `validate:"omitempty,hostname_port"`
+	HTTPS         string     `validate:"omitempty,hostname_port"`
+	TLSCert       string
+	TLSKey        string
+	TLSMinVersion TLSVersion `default:"1.2"`
+	TLSMaxVersion TLSVersion // 沒設時是 0：用 Go 的預設
+}
+
+// Validate 放跨欄位的規則。它在解碼和 validate tag 之後執行；回傳的每個
+// 錯誤都掛在這個 struct 的 key（web）底下。
+func (w Web) Validate() error {
+	var errs []error
+	if w.HTTP == "" && w.HTTPS == "" {
+		errs = append(errs, errors.New("set http, https or both"))
+	}
+	if w.HTTPS != "" && (w.TLSCert == "" || w.TLSKey == "") {
+		errs = append(errs, errors.New("https needs tls_cert and tls_key"))
+	}
+	if w.TLSMaxVersion != 0 && w.TLSMinVersion > w.TLSMaxVersion {
+		errs = append(errs, errors.New("tls_min_version is above tls_max_version"))
+	}
+	return errors.Join(errs...)
+}
+
+type Expiry struct {
+	IDTokens       time.Duration `default:"24h" validate:"min=1m"`
+	AuthRequests   time.Duration `default:"24h" validate:"min=1m"`
+	DeviceRequests time.Duration `default:"5m" validate:"min=1m"`
+}
+
+type Config struct {
+	Web    Web
+	Expiry Expiry
+}
+
+func main() {
+	cfg, err := config.Load[Config](context.Background(), config.From(config.Profile("app")))
+	if err != nil {
+		// 先解碼；每個階段都一次列出該階段的所有問題，各帶 key 的路徑：
+		//   config: decode: web.tls_min_version: unsupported TLS version "1.1" (want 1.2 or 1.3)
+		// 所有值都解碼成功後，才檢查規則：
+		//   config: invalid: web: https needs tls_cert and tls_key
+		//   expiry.id_tokens: does not satisfy "min=1m"
+		log.Fatal(err)
+	}
+	log.Printf("id tokens valid for %s", cfg.Expiry.IDTokens)
+}
+```
+
+需要寫程式的規則，放在相關型別的方法裡：
+
+| 方法 | 何時執行 | 用途 |
+|---|---|---|
+| `UnmarshalText([]byte) error` | 解碼字串時 | 寫成一個字串的值：版本、等級、位址（`netip.Addr` 本來就有） |
+| `UnmarshalConfig(any) error` | 解碼時，拿到原始的值：map、清單、字串、數字 | 有好幾種寫法的值，例如 `"5s"` 或 `{min: 1s, max: 5s}` |
+| `SetDefaults()` | 解碼之前、`default` tag 之後 | 要計算的預設值，例如取自主機名稱 |
+| `Validate() error` | 解碼和 `validate` tag 之後 | 跨欄位的規則 |
+
+`validate` 的規則列在 [Struct tag](#struct-tag)。
+
+### 14 自訂來源
+
+**以前**，節錄自 [CDS](https://github.com/ovh/cds)（[docs/content/hosting/configuration.md](https://github.com/ovh/cds/blob/557c0b78924e38d064df907f4849c0a3d96d8470/docs/content/hosting/configuration.md#L55-L89)、[engine/config.go](https://github.com/ovh/cds/blob/557c0b78924e38d064df907f4849c0a3d96d8470/engine/config.go#L253-L306)、[engine/config_vault.go](https://github.com/ovh/cds/blob/557c0b78924e38d064df907f4849c0a3d96d8470/engine/config_vault.go#L35-L52)）。整份 TOML 存成一個 Consul key 或一個 Vault secret：
+
+```bash
+# docs/content/hosting/configuration.md
+$ consul kv put cds/config.api.toml -
+<PASTE YOUR CONFIGURATION>
+<ENDS WITH CTRL-D>
+Success! Data written to: cds/config.api.toml
+
+$ $PATH_TO_CDS/engine start api --remote-config localhost:8500 --remote-config-key cds/config.api.toml
+
+# 或
+$ myConfig=`cat conf.toml`
+$ vault write secret/cds/conf data=$myConfig
+$ $PATH_TO_CDS/engine start api --vault-addr=http://myvault.com  --vault-token=XXXX
+```
+
+```go
+// engine/config.go：三種來源選一種
+switch {
+case remoteCfg != "":
+	viper.AddRemoteProvider("consul", remoteCfg, remoteCfgKey)
+	viper.SetConfigType("toml")
+	if err := viper.ReadRemoteConfig(); err != nil {
+		sdk.Exit(err.Error())
+	}
+case vaultAddr != "" && vaultToken != "":
+	// I hope one day vault will be a standard viper remote provider
+	s, err := VaultNewSecret(vaultToken, vaultAddr)
+	// …
+	cfgFileContent, err := s.GetFromVault(vaultConfKey) // "/secret/cds/conf"
+	// …
+	viper.SetConfigType("toml")
+	if err := viper.ReadConfig(bytes.NewBufferString(cfgFileContent)); err != nil {
+		sdk.Exit("Unable to read config: %v", err)
+	}
+// … 或本機檔案
+}
+
+// engine/config_vault.go
+func (secret *VaultSecret) GetFromVault(s string) (string, error) {
+	conf, err := secret.Client.Logical().Read(s)
+	if err != nil {
+		return "", sdk.WithStack(err)
+	} else if conf == nil {
+		log.Warn(context.Background(), "vault> no value found at %q", s)
+		return "", nil
+	}
+	// …
+}
+```
+
+| | CDS | loadconf |
+|---|---|---|
+| 來源 | Consul、Vault、檔案三選一，由 `switch` 決定 | 分層：檔案、Consul、環境變數依序逐 key 合併 |
+| key 不存在 | Vault：記一筆警告，然後用空的設定 | `Load` 失敗，並寫出是哪個來源 |
+| 格式與路徑 | TOML 和 Vault 路徑 `/secret/cds/conf` 都寫死在程式裡 | 來源的欄位 |
+| 錯誤 | 每一步都 `sdk.Exit` | 由 `Load` 回傳 |
+| token | `--vault-token=XXXX` 放在命令列，`ps` 看得到 | 環境變數 `CONSUL_HTTP_TOKEN`，以 header 送出 |
+
+**用 loadconf**，和範例 9 的差別：有 `Load` 和 `String` 的型別就是一個來源；再加上 `Watch`，就能參與熱更新。這個來源透過 Consul 的 HTTP API 讀一個 key，所以不需要 Consul client。
+
+```bash
+# Consul 裡的文件放執行中會被維運調整的設定。
+consul kv put order-service/prod.toml - <<'EOF'
+max_items = 50
+[log]
+level = "debug"
+EOF
+```
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+
+	"github.com/linzeyan/loadconf/config"
+)
+
+// consulKey 讀一個存了整份文件的 Consul KV key。
+type consulKey struct {
+	addr   string // 例如 http://127.0.0.1:8500
+	key    string // 例如 order-service/prod.toml
+	format string // "toml"：key 的內容交給 config.Parse 解析
+	token  string // ACL token，或 ""
+}
+
+func (c *consulKey) String() string { return "consul(" + c.key + ")" }
+
+func (c *consulKey) Load(ctx context.Context) (map[string]any, error) {
+	data, _, err := c.get(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	return config.Parse(c.format, data)
+}
+
+// Watch 一直執行到 ctx 結束。每個請求都是 Consul 的 blocking query：key 的
+// index 超過上一次時回傳，或五分鐘後以同樣的 index 回傳。多呼叫一次 changed
+// 沒有關係：loader 會比較重新載入的設定和目前的設定。
+func (c *consulKey) Watch(ctx context.Context, changed func()) error {
+	_, index, err := c.get(ctx, "")
+	for err == nil {
+		var next string
+		if _, next, err = c.get(ctx, index); err == nil && next != index {
+			index = next
+			changed()
+		}
+	}
+	if ctx.Err() != nil {
+		return nil
+	}
+	return err
+}
+
+func (c *consulKey) get(ctx context.Context, index string) ([]byte, string, error) {
+	url := c.addr + "/v1/kv/" + c.key + "?raw"
+	if index != "" {
+		url += "&wait=5m&index=" + index
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	if c.token != "" {
+		req.Header.Set("X-Consul-Token", c.token)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK { // 404：key 不存在
+		return nil, "", fmt.Errorf("GET /v1/kv/%s: %s", c.key, resp.Status)
+	}
+	data, err := io.ReadAll(resp.Body)
+	return data, resp.Header.Get("X-Consul-Index"), err
+}
+
+type Config struct {
+	Log      config.Log
+	MaxItems int `default:"100"`
+}
+
+func main() {
+	ctx := context.Background()
+	loader := config.New[Config](config.From(
+		config.Profile("app"), // 進版控的設定
+		&consulKey{
+			addr:   "http://127.0.0.1:8500",
+			key:    "order-service/prod.toml",
+			format: "toml",
+			token:  os.Getenv("CONSUL_HTTP_TOKEN"),
+		},
+		config.Env("APP"), // 密碼
+	))
+	cfg, err := loader.Load(ctx)
+	if err != nil {
+		// 例如 config: load consul(order-service/prod.toml): GET /v1/kv/order-service/prod.toml: 404 Not Found
+		log.Fatal(err)
+	}
+	log.Printf("max items: %d", cfg.MaxItems)
+	// 對這個 key 執行 `consul kv put` 會重新載入設定，和檔案變更一樣
+	// （範例 9）。
+	go loader.Watch(ctx)
+	// …
+}
+```
+
+文件不在檔案裡時，可以用內建的來源：
+
+```go
+//go:embed defaults.yaml
+var defaults []byte
+
+config.From(
+	config.Bytes("yaml", defaults),                  // 編進執行檔的預設值
+	config.File("/etc/app/app.yaml", config.Optional()),
+)
+
+// 測試裡：完全不需要檔案的設定
+cfg, err := config.Load[Config](ctx, config.From(config.Map(map[string]any{
+	"max_items": 2,
+	"log":       map[string]any{"level": "debug"},
+})))
+```
+
 ## 參考
 
 ### 來源與優先順序
@@ -1367,7 +2148,7 @@ func TestPlaceRejectsTooManyItems(t *testing.T) {
 ```go
 cfg, err := config.Load[Config](ctx, config.From(
 	config.Profile("app"),                                 // configs/app.yaml + configs/app.$ENV.yaml
-	config.File("/etc/app/extra.toml", config.Optional()), // .json .yaml .yml .toml；Optional：可以不存在
+	config.File("/etc/app/extra.toml", config.Optional()), // .json .yaml .yml .toml，或註冊過的格式；Optional：可以不存在
 	config.DotEnv(".env", "APP", config.DotEnvOptional()), // 名稱規則同 Env
 	etcd.Prefix(cli, "/order-service/prod/"),              // /order-service/prod/mysql/main/host -> mysql.main.host
 	config.Env("APP"),                                     // 真正的環境變數
@@ -1376,7 +2157,9 @@ cfg, err := config.Load[Config](ctx, config.From(
 // 有 env tag 的欄位在所有來源之後才設定。
 // 另外還有 config.Bytes("yaml", data) 和 config.Map(m)，給測試或程式內建的
 // 預設值用。自訂來源實作 config.Source；要參與熱更新，再實作
-// config.WatchableSource。
+// config.WatchableSource（範例 14）。
+// config.RegisterFormat("ini", parse, ".ini") 新增格式（範例 12）；
+// 副檔名看不出格式的檔案用 config.FileFormat("yaml") 指定。
 ```
 
 ### 哪些來源會看 ENV
@@ -1413,15 +2196,31 @@ type Config struct {
 	Port    int             `default:"8080" env:"PORT"` // env：在所有來源之後讀取 $PORT
 	Timeout time.Duration   `default:"5s"`              // duration 要寫成字串："500ms"、"5m"
 	Buffer  config.ByteSize `default:"64MiB"`           // 64MiB = 64×1024²，64MB = 64×1000²
-	Hosts   []string        `validate:"min=1"`          // go-playground/validator 的規則
+	Hosts   []string        `validate:"min=1,dive,hostname_port"` // 規則見下表
 	Token   config.Secret   // 印出來是 ******；Token.Value() 才是原文
 	GRPC    GRPCConfig      `env-prefix:"GRPC_"`        // GRPCConfig 裡 env tag 的前綴
 	Legacy  string          `config:"legacy_name"`      // 指定 key；"-" 表示略過這個欄位
 }
 // 型別可以實作 SetDefaults()、Validate() error 或 UnmarshalConfig(any) error
-// 介入載入流程。實作 encoding.TextUnmarshaler 的型別（例如 netip.Addr）可以
-// 從字串解碼。config.WithTagName("yaml") 改讀 yaml tag，不讀 config tag。
+// 介入載入流程（範例 13）。實作 encoding.TextUnmarshaler 的型別（例如
+// netip.Addr）可以從字串解碼。config.WithTagName("yaml") 改讀 yaml tag，
+// 不讀 config tag（範例 11）。
 ```
+
+`validate` 放以逗號分隔的規則，在解碼之後檢查。一個欄位只回報第一條沒通過的規則。規則名稱寫錯，或參數不符合欄位型別時，不論值是什麼 `Load` 都會失敗，打錯字不會讓檢查默默失效。
+
+| 規則 | 通過的條件 |
+|---|---|
+| `required` | 有設值：不是零值、不是空的、不是 nil 指標 |
+| `omitempty` | 一律通過；值是空的時候，後面的規則都略過 |
+| `min=n`、`max=n`、`len=n`、`gt=n`、`gte=n`、`lt=n`、`lte=n` | 字串（以字元計）、slice、map 比長度；數字、`time.Duration`、`config.ByteSize` 比值本身，所以可以寫 `min=1s`、`max=64MiB`。`gte` 等同 `min`，`lte` 等同 `max` |
+| `oneof=a b c` | 值是以空白分隔的其中一個 |
+| `url` | 有 scheme，且有 host 或 path 的絕對 URL：`https://host/path`、`file:///tmp/x` |
+| `hostname_port` | `host:port` 或 `:port`，port 在 1 到 65535 之間 |
+| `ip`、`cidr` | IPv4 或 IPv6 位址；`10.0.0.0/8` 這種網段 |
+| `dive` | 後面的規則套用到 slice 或 map 的每個元素 |
+
+`Secret` 以它裝的字串檢查。slice、map、`Named` 裡的 struct，它們欄位上的規則不需要 `dive` 也會檢查。需要寫程式的規則（例如某個欄位取決於另一個欄位）放在 `Validate() error` 方法裡。
 
 ### Open 與 New
 

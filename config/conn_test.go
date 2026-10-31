@@ -2,7 +2,6 @@ package config_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"log/slog"
 	"strings"
@@ -126,15 +125,6 @@ func TestSecretLogValue(t *testing.T) {
 	slog.New(slog.NewTextHandler(&buf, nil)).Info("x", "pw", config.NewSecret("hunter2"))
 	if strings.Contains(buf.String(), "hunter2") {
 		t.Errorf("secret logged: %s", buf.String())
-	}
-}
-
-func TestWithoutTagValidator(t *testing.T) {
-	type conf struct {
-		Name string `config:"name" validate:"required"`
-	}
-	if _, err := config.Load[conf](context.Background(), quiet(), config.WithValidator(nil)); err != nil {
-		t.Errorf("tag validation should be disabled: %v", err)
 	}
 }
 

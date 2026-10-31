@@ -298,6 +298,122 @@ func TestValidateTagsOnSecret(t *testing.T) {
 	}
 }
 
+// Each rule is checked against the value as decoded, so bounds are written in
+// the field's own units and every mistake is reported with its key path.
+func TestValidateRules(t *testing.T) {
+	type server struct {
+		Addr    string        `validate:"hostname_port"`
+		Timeout time.Duration `validate:"min=100ms,max=1m"`
+	}
+	type conf struct {
+		Mode    string          `validate:"oneof=dev prod"`
+		Level   int             `validate:"oneof=0 1 2"`
+		Buffer  config.ByteSize `validate:"omitempty,gte=1KiB"`
+		Brokers []string        `validate:"min=1,dive,hostname_port"`
+		Webhook string          `validate:"omitempty,url"`
+		Allow   []string        `validate:"dive,cidr"`
+		Bind    string          `validate:"omitempty,ip"`
+		Name    string          `validate:"len=3"`
+		TLS     *struct{ Cert string }
+		Backup  *server `validate:"required"`
+		Servers []server
+	}
+	valid := `
+mode: prod
+level: 2
+brokers: ['k1:9092', 'kafka.internal:9093']
+webhook: https://hooks.example.com/x
+allow: [10.0.0.0/8]
+bind: '::1'
+name: abc
+backup: {addr: ':8080', timeout: 1s}
+servers: [{addr: 'a:1', timeout: 1s}]
+`
+	if _, err := loadYAML[conf](t, valid); err != nil {
+		t.Fatalf("valid config rejected: %v", err)
+	}
+
+	_, err := loadYAML[conf](t, `
+mode: staging
+level: 3
+buffer: 512B
+brokers: ['k1:9092', 'k2']
+webhook: 'localhost:8080'
+allow: [10.0.0.0/8, 10.0.0.1]
+bind: 'not-an-ip'
+name: abcd
+servers: [{addr: 'a:1', timeout: 10ms}, {addr: 'a:0', timeout: 1s}]
+`)
+	if err == nil {
+		t.Fatal("expected validation errors")
+	}
+	for _, want := range []string{
+		`mode: does not satisfy "oneof=dev prod"`,
+		`level: does not satisfy "oneof=0 1 2"`,
+		`buffer: does not satisfy "gte=1KiB"`,
+		`brokers[1]: does not satisfy "hostname_port"`,
+		`webhook: does not satisfy "url"`,
+		`allow[1]: does not satisfy "cidr"`,
+		`bind: does not satisfy "ip"`,
+		`name: does not satisfy "len=3"`,
+		// A nil pointer is reported by required instead of being skipped.
+		`backup: does not satisfy "required"`,
+		// Rules on fields of struct elements apply without dive.
+		`servers[0].timeout: does not satisfy "min=100ms"`,
+		`servers[1].addr: does not satisfy "hostname_port"`,
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error missing %q:\n%v", want, err)
+		}
+	}
+	if strings.Contains(err.Error(), "brokers[0]") || strings.Contains(err.Error(), "tls") {
+		t.Errorf("valid values reported:\n%v", err)
+	}
+}
+
+// A misspelled rule or a parameter of the wrong type would otherwise turn a
+// check off silently, so it fails loading even when the value is empty.
+func TestValidateTagMistakes(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		load func() error
+		want string
+	}{
+		{"unknown rule", func() error {
+			type conf struct {
+				Port int `validate:"omitempty,minimum=1"`
+			}
+			_, err := loadYAML[conf](t, "{}")
+			return err
+		}, `port: validate tag "omitempty,minimum=1": minimum=1: unknown rule`},
+		{"bad parameter", func() error {
+			type conf struct {
+				Timeout time.Duration `validate:"min=fast"`
+			}
+			_, err := loadYAML[conf](t, "timeout: 1s")
+			return err
+		}, `timeout: validate tag "min=fast": min=fast: parameter "fast"`},
+		{"format rule on a number", func() error {
+			type conf struct {
+				Port int `validate:"url"`
+			}
+			_, err := loadYAML[conf](t, "port: 1")
+			return err
+		}, `url: applies to strings, not int`},
+		{"dive on a scalar", func() error {
+			type conf struct {
+				Host string `validate:"dive,ip"`
+			}
+			_, err := loadYAML[conf](t, "host: x")
+			return err
+		}, `dive needs a slice, array or map, not string`},
+	} {
+		if err := tc.load(); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: got %v, want %q", tc.name, err, tc.want)
+		}
+	}
+}
+
 func TestStrictUnknownKeys(t *testing.T) {
 	_, err := loadYAML[appConf](t, "name: x\nprot: 1\nmysql: {a: {host: h, databse: d}}", config.WithStrict())
 	if err == nil || !strings.Contains(err.Error(), "unknown keys: mysql.a.databse, prot") {

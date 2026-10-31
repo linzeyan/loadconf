@@ -10,8 +10,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/go-playground/validator/v10"
 )
 
 // ErrNotWatchable is returned by [Loader.Watch] when no source can be watched.
@@ -21,13 +19,11 @@ var ErrNotWatchable = errors.New("config: no watchable source")
 type Option func(*options)
 
 type options struct {
-	sources      []Source
-	tagName      string
-	strict       bool
-	validator    *validator.Validate
-	validatorSet bool
-	logger       *slog.Logger
-	debounce     time.Duration
+	sources  []Source
+	tagName  string
+	strict   bool
+	logger   *slog.Logger
+	debounce time.Duration
 }
 
 // From appends sources. Later sources override earlier ones; `env` tags
@@ -44,14 +40,6 @@ func WithStrict() Option { return func(o *options) { o.strict = true } }
 // WithTagName sets the struct tag holding key names (default "config"), e.g.
 // "yaml" to reuse existing yaml tags.
 func WithTagName(name string) Option { return func(o *options) { o.tagName = name } }
-
-// WithValidator sets the validator used for `validate` tags, e.g. one with
-// custom rules registered. nil disables tag validation; Validator hooks still
-// run. For string rules on [Secret] fields, register a custom type func that
-// returns [Secret.Value], as the default validator does.
-func WithValidator(v *validator.Validate) Option {
-	return func(o *options) { o.validator, o.validatorSet = v, true }
-}
 
 // WithLogger sets the logger for load and reload events (default: whatever
 // slog.Default() is when an event is logged). nil disables logging.
@@ -95,9 +83,6 @@ func New[T any](opts ...Option) *Loader[T] {
 	o := options{tagName: DefaultTagName, debounce: 500 * time.Millisecond}
 	for _, opt := range opts {
 		opt(&o)
-	}
-	if !o.validatorSet {
-		o.validator = newValidator(o.tagName)
 	}
 	return &Loader[T]{opts: o}
 }
@@ -294,7 +279,7 @@ func (l *Loader[T]) load(ctx context.Context) (*T, error) {
 	if err := errors.Join(append(problems, d.errs...)...); err != nil {
 		return nil, fmt.Errorf("config: decode: %w", err)
 	}
-	if err := validateValue(l.opts.validator, v, l.opts.tagName); err != nil {
+	if err := validateValue(v, l.opts.tagName); err != nil {
 		return nil, fmt.Errorf("config: invalid: %w", err)
 	}
 

@@ -20,6 +20,10 @@ Every connector is a separate Go module, so a service that only uses Redis does 
   8. [Logging to several outputs](#8-logging-to-several-outputs)
   9. [Hot reload and reconnecting](#9-hot-reload-and-reconnecting)
   10. [Configuration for each layer](#10-configuration-for-each-layer)
+  11. [A file path of your own, and struct tags you already have](#11-a-file-path-of-your-own-and-struct-tags-you-already-have)
+  12. [A format of your own](#12-a-format-of-your-own)
+  13. [Types and checks of your own](#13-types-and-checks-of-your-own)
+  14. [A source of your own](#14-a-source-of-your-own)
 - [Reference](#reference)
   - [Sources and precedence](#sources-and-precedence)
   - [Which sources read ENV](#which-sources-read-env)
@@ -51,11 +55,27 @@ The import path is the module path; the package name is its last element.
 
 ## Examples
 
-Each example opens with **Before**: the same task as a popular open-source project writes it without loadconf, condensed from the linked files, and a table of what differs. **With loadconf** follows; it adds one thing to an earlier example and names the change.
+Each example opens with **Before**: the same task as a popular open-source project writes it without loadconf, its config file and its code condensed from the linked files, and a table of what differs. **With loadconf** follows, with the config file and the code; it adds one thing to an earlier example and names the change.
 
 ### 1 One config file
 
-**Before**, from [gin-vue-admin](https://github.com/flipped-aurora/gin-vue-admin) ([config/db_list.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/db_list.go), [config/gorm_mysql.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/gorm_mysql.go), [core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go), [initialize/gorm_mysql.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/gorm_mysql.go)):
+**Before**, from [gin-vue-admin](https://github.com/flipped-aurora/gin-vue-admin) ([config.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.yaml#L103-L116), [config/db_list.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/db_list.go), [config/gorm_mysql.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/gorm_mysql.go), [core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go), [initialize/gorm_mysql.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/gorm_mysql.go)):
+
+```yaml
+# config.yaml
+mysql:
+    path: ""
+    port: ""
+    config: ""                # the DSN's query string
+    db-name: ""
+    username: ""
+    password: ""
+    max-idle-conns: 10
+    max-open-conns: 100
+    conn-max-lifetime: 0      # seconds
+    log-mode: ""
+    log-zap: false
+```
 
 ```go
 // config/db_list.go
@@ -171,7 +191,41 @@ func main() {
 
 ### 2 One file per environment
 
-**Before**, from gin-vue-admin ([core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go), [core/internal/constant.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/internal/constant.go)):
+**Before**, from gin-vue-admin ([config.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.yaml), [config.docker.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.docker.yaml), [Dockerfile](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/Dockerfile#L31), [core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go), [core/internal/constant.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/internal/constant.go)). The repository ships two complete files; the Dockerfile runs `./server -c config.docker.yaml`.
+
+```yaml
+# config.yaml: 291 lines
+redis:
+    useCluster: false
+    addr: 127.0.0.1:6379
+    username: ""
+    password: ""
+    db: 0
+# …
+system:
+    # …
+    disable-auto-migrate: false
+mysql:
+    # …
+    conn-max-lifetime: 0
+```
+
+```yaml
+# config.docker.yaml: 282 lines, a copy of config.yaml to change addresses
+redis:
+    useCluster: false
+    addr: 177.7.0.14:6379
+    # username is missing
+    password: ""
+    db: 0
+# … identical but for addresses
+system:
+    # …
+    # disable-auto-migrate is missing
+mysql:
+    # …
+    # conn-max-lifetime is missing, here and in the other five database sections
+```
 
 ```go
 // getConfigPath picks one file, and only that file is read.
@@ -202,6 +256,7 @@ func getConfigPath() (config string) {
 | | gin-vue-admin | loadconf |
 |---|---|---|
 | Files read | one; each environment's file repeats the shared keys | `app.yaml`, then `app.$ENV.yaml` over it, key by key |
+| A key added later | added to each copy by hand; `config.docker.yaml` already lacks three | added once to `app.yaml` |
 | An environment without its own file | runs on `config.yaml` | `Load` fails, naming the file it looked for |
 | Chosen by | `-c`, then `$GVA_CONFIG`, then gin's mode | `$ENV`; `$CONFIG_PATH` names a single file |
 
@@ -292,7 +347,19 @@ config.Profile("app", config.ProfilePathEnvVar("APP_CONFIG"))     // variable na
 
 ### 3 Environment variables and secrets
 
-**Before**, from [go-clean-arch](https://github.com/bxcodec/go-clean-arch) ([app/main.go](https://github.com/bxcodec/go-clean-arch/blob/e06c6d0cb37069b0ef56e3df67f80ca130a1ab82/app/main.go)):
+**Before**, from [go-clean-arch](https://github.com/bxcodec/go-clean-arch) ([example.env](https://github.com/bxcodec/go-clean-arch/blob/e06c6d0cb37069b0ef56e3df67f80ca130a1ab82/example.env), [app/main.go](https://github.com/bxcodec/go-clean-arch/blob/e06c6d0cb37069b0ef56e3df67f80ca130a1ab82/app/main.go)). There is no config file; every setting is a variable, and `example.env` is copied to `.env`:
+
+```bash
+# example.env
+DEBUG = True
+SERVER_ADDRESS = ":9090"
+CONTEXT_TIMEOUT = 2
+DATABASE_HOST = "localhost"
+DATABASE_PORT = "3306"
+DATABASE_USER = "user"
+DATABASE_PASS = "password"
+DATABASE_NAME = "article"
+```
 
 ```go
 func init() {
@@ -330,7 +397,16 @@ func main() {
 | An unset variable | an empty string, passed into the DSN | a required field fails `Load` |
 | Password | a plain string | `config.Secret`: `******` under every fmt verb |
 
-**With loadconf**, changes from example 2: `config.DotEnv` and `config.Env` join the sources, and `PaymentKey` is a `config.Secret`.
+**With loadconf**, changes from example 2: `config.DotEnv` and `config.Env` join the sources, and `PaymentKey` is a `config.Secret`. The files of example 2 keep the settings shared by every deployment; variables carry only what differs, such as passwords.
+
+```yaml
+# configs/app.yaml: unchanged from example 2, and free of secrets
+port: 8080
+mysql:
+  user: app
+  database: shop
+  max_open_conns: 20
+```
 
 ```go
 package main
@@ -549,7 +625,7 @@ APP_MYSQL__ARCHIVE__HOST=10.0.0.3    # a new instance "archive", defined by the 
 
 ### 5 Configuration in etcd
 
-**Before**, from [viper](https://github.com/spf13/viper)'s [README](https://github.com/spf13/viper/blob/528f7416c4b56a4948673984b190bf8713f0c3c4/README.md#remote-keyvalue-store-support):
+**Before**, from [viper](https://github.com/spf13/viper)'s [README](https://github.com/spf13/viper/blob/528f7416c4b56a4948673984b190bf8713f0c3c4/README.md#remote-keyvalue-store-support). The configuration is one YAML document stored as the value of the etcd key `/config/hugo.yml`; the README does not show the document.
 
 ```go
 import _ "github.com/spf13/viper/remote"
@@ -585,6 +661,24 @@ go func() {
 | Changes | a loop you write: sleep, read, `Unmarshal` into the struct in use | `Watch`, as for files; resumes from the revision of the last read |
 
 **With loadconf**, changes from example 4: the configuration is read from etcd. The program must know where etcd is before it can read from it, so it loads in two stages.
+
+```bash
+# The environment says where etcd is; nothing else is set here.
+APP_ETCD__ENDPOINTS=etcd1:2379,etcd2:2379
+APP_ETCD__USERNAME=order-service
+APP_ETCD__PASSWORD=s3cret
+```
+
+```yaml
+# The value of the etcd key /order-service/prod/config.yaml: the same document
+# as configs/app.yaml of example 4
+port: 9090
+mysql:
+  orders:
+    host: db1
+    user: app
+    database: orders
+```
 
 ```go
 package main
@@ -695,7 +789,21 @@ Both source kinds are watchable: under `Loader.Watch` (example 9), a change to t
 
 ### 6 Driver settings
 
-**Before**, from gin-vue-admin ([config/redis.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/redis.go), [initialize/redis.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/redis.go)):
+**Before**, from gin-vue-admin ([config.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.yaml#L21-L34), [config/redis.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config/redis.go), [initialize/redis.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/redis.go)):
+
+```yaml
+# config.yaml: every key the code reads, and nothing more
+redis:
+    useCluster: false
+    addr: 127.0.0.1:6379      # ignored when useCluster is true
+    username: ""
+    password: ""
+    db: 0
+    clusterAddrs:
+        - "172.21.0.3:7000"
+        - "172.21.0.4:7001"
+        - "172.21.0.2:7002"
+```
 
 ```go
 // config/redis.go
@@ -816,7 +924,7 @@ go doc github.com/linzeyan/loadconf/config.Redis   # every field of a settings t
 
 ### 7 Read replicas
 
-**Before**, from [gorm](https://github.com/go-gorm/gorm)'s documentation ([DBResolver](https://gorm.io/docs/dbresolver.html)):
+**Before**, from [gorm](https://github.com/go-gorm/gorm)'s documentation ([DBResolver](https://gorm.io/docs/dbresolver.html)). There is no config file: the DSNs and the pool are written in code, and moving them to a file is left to each project.
 
 ```go
 db, err := gorm.Open(mysql.Open("db1_dsn"), &gorm.Config{})
@@ -1077,7 +1185,16 @@ At run time, `log.Update` changes the levels, global and per output, at once (ex
 
 ### 9 Hot reload and reconnecting
 
-**Before**, from gin-vue-admin ([core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go), [initialize/reload.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/reload.go)):
+**Before**, from gin-vue-admin ([config.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.yaml), [core/viper.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/core/viper.go), [initialize/reload.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/initialize/reload.go)). An edit to `config.yaml` while the server runs, and what the code below does with it:
+
+```yaml
+# config.yaml
+zap:
+    level: debug              # was info: GVA_CONFIG changes; the logger built at start keeps info
+mysql:
+    path: 10.0.0.2            # GVA_CONFIG changes; GVA_DB keeps the old connection until Reload is called
+    max-open-conns: abc       # Unmarshal fails after the keys before it were already written
+```
 
 ```go
 // core/viper.go
@@ -1106,7 +1223,17 @@ global.GVA_DB = Gorm()
 | Rebuilding a connection | the old one is closed first; if the new one fails, `Gorm()` panics | open the new one first; on failure, keep the old one |
 | An editor saving in several writes | a reload per write | one reload, 500ms after the last change |
 
-**With loadconf**, changes from example 8: `config.Load` becomes `config.New`, and the loader watches the sources. Log levels follow a change immediately; connections are rebuilt in `OnChange`.
+**With loadconf**, changes from example 8: `config.Load` becomes `config.New`, and the loader watches the sources. Log levels follow a change immediately; connections are rebuilt in `OnChange`. The same kind of edit:
+
+```yaml
+# configs/app.yaml
+log:
+  level: debug              # was info: OnChange calls log.Update, and debug records appear
+mysql:
+  host: 10.0.0.2            # OnChange opens a pool to 10.0.0.2, then swaps it in
+  max_open_conns: abc       # the whole reload is rejected: nothing above is applied, OnError runs
+max_items: 50               # loader.Current().MaxItems returns 50 from the next request on
+```
 
 ```go
 package main
@@ -1225,7 +1352,16 @@ For Redis, close the stale client in its own goroutine (`go stale.Close()`): go-
 
 ### 10 Configuration for each layer
 
-**Before**, from gin-vue-admin ([global/global.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/global/global.go), [service/system/sys_user.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/service/system/sys_user.go), [utils/jwt.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/utils/jwt.go)):
+**Before**, from gin-vue-admin ([config.yaml](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/config.yaml#L3-L8), [global/global.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/global/global.go), [service/system/sys_user.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/service/system/sys_user.go), [utils/jwt.go](https://github.com/flipped-aurora/gin-vue-admin/blob/e8d675c8911c78e4aa602c023d41f3486d3a61d9/server/utils/jwt.go)):
+
+```yaml
+# config.yaml
+jwt:
+    signing-key: qmPlus
+    expires-time: 7d          # a string, parsed by utils.ParseDuration where the token is made
+    buffer-time: 1d
+    issuer: qmPlus
+```
 
 ```go
 // global/global.go
@@ -1253,6 +1389,17 @@ ep, _ := ParseDuration(global.GVA_CONFIG.JWT.ExpiresTime)
 | A bad value | parsed where it is used; `ParseDuration`'s error is dropped | decoded by the field's type and checked by `validate` when `main` loads |
 
 **With loadconf**, changes from example 9: the whole `Config` is no longer passed around. Each layer declares the settings it needs, and `main` composes them.
+
+```yaml
+# configs/app.yaml: one section per layer, named by the field main composes it under
+mysql:
+  host: 127.0.0.1
+  user: app
+  database: shop
+order:
+  max_items: 50             # checked by validate:"min=1" when main loads
+  timeout: 2s               # decoded as a time.Duration; "2 seconds" fails Load
+```
 
 `order/order.go`:
 
@@ -1374,6 +1521,645 @@ func TestPlaceRejectsTooManyItems(t *testing.T) {
 }
 ```
 
+### 11 A file path of your own, and struct tags you already have
+
+**Before**, from [etcd](https://github.com/etcd-io/etcd) ([etcd.conf.yml.sample](https://github.com/etcd-io/etcd/blob/1573d59416efa220421c451f5266b24a5d8374ef/etcd.conf.yml.sample#L15-L43), [server/etcdmain/config.go](https://github.com/etcd-io/etcd/blob/1573d59416efa220421c451f5266b24a5d8374ef/server/etcdmain/config.go#L136-L150), [server/embed/config.go](https://github.com/etcd-io/etcd/blob/1573d59416efa220421c451f5266b24a5d8374ef/server/embed/config.go#L461-L476)):
+
+```yaml
+# etcd.conf.yml.sample
+# Time (in milliseconds) of a heartbeat interval.
+heartbeat-interval: 100
+
+# Time (in milliseconds) for an election to timeout.
+election-timeout: 1000
+
+# List of comma separated URLs to listen on for peer traffic.
+listen-peer-urls: http://localhost:2380
+
+# List of comma separated URLs to listen on for client traffic.
+listen-client-urls: http://localhost:2379
+
+# List of this member's client URLs to advertise to the public.
+# The URLs needed to be a comma-separated list.
+advertise-client-urls: http://localhost:2379
+```
+
+```go
+// server/etcdmain/config.go
+fs.StringVar(&cfg.configFile, "config-file", "", "Path to the server configuration file. Note that if a configuration file is provided, other command line flags and environment variables will be ignored.")
+// …
+if cfg.configFile == "" {
+	cfg.configFile = os.Getenv(flags.FlagToEnv("ETCD", "config-file"))
+}
+if cfg.configFile != "" {
+	err = cfg.configFromFile(cfg.configFile)
+} else {
+	err = cfg.configFromCmdLine()
+}
+
+// server/embed/config.go
+type configJSON struct {
+	ListenPeerURLs      string `json:"listen-peer-urls"`
+	ListenClientURLs    string `json:"listen-client-urls"`
+	AdvertiseClientURLs string `json:"advertise-client-urls"`
+	// …
+}
+
+func (cfg *configYAML) configFromFile(path string) error {
+	b, err := os.ReadFile(path)
+	// …
+	err = yaml.Unmarshal(b, cfg)
+	// …
+	if cfg.configJSON.ListenPeerURLs != "" {
+		u, err := types.NewURLs(strings.Split(cfg.configJSON.ListenPeerURLs, ","))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "unexpected error setting up listen-peer-urls: %v\n", err)
+			os.Exit(1)
+		}
+		cfg.Config.ListenPeerUrls = u
+	}
+	// … five more copies of this block, one per URL list; the one for
+	// advertise-client-urls prints "advertise-peer-urls" on error
+}
+```
+
+| | etcd | loadconf |
+|---|---|---|
+| Path | `--config-file`, then `$ETCD_CONFIG_FILE` | your own flag, passed to `config.File` |
+| Struct tags | `json` tags, read through `sigs.k8s.io/yaml` | the same `json` tags, with `config.WithTagName("json")` |
+| URL lists | a comma-separated string, split and parsed after loading, one copied block per list | `[]string` from a YAML list or a comma-separated string; `validate:"dive,url"` checks each item |
+| A bad URL | `os.Exit(1)` inside a function that returns `error`; the first bad list stops the process | `Load` returns every bad URL, each with its key |
+
+**With loadconf**, changes from example 1: the path comes from a flag, and the struct keeps the key names its `json` tags already declare. The file is not touched.
+
+```yaml
+# /etc/etcd/etcd.conf.yml: the same file as before
+heartbeat-interval: 100
+election-timeout: 1000
+listen-peer-urls: http://localhost:2380
+listen-client-urls: http://localhost:2379,http://10.0.0.5:2379   # a comma-separated string still works
+advertise-client-urls: http://localhost:2379
+```
+
+```go
+package main
+
+import (
+	"context"
+	"flag"
+	"log"
+
+	"github.com/linzeyan/loadconf/config"
+)
+
+// The json tags name the keys, so the existing file loads as it is. Fields
+// without a tag key fall back to snake_case.
+type ServerConfig struct {
+	HeartbeatInterval   int      `json:"heartbeat-interval" default:"100" validate:"min=1"` // milliseconds
+	ElectionTimeout     int      `json:"election-timeout" default:"1000" validate:"min=1"`
+	ListenPeerURLs      []string `json:"listen-peer-urls" validate:"min=1,dive,url"`
+	ListenClientURLs    []string `json:"listen-client-urls" validate:"min=1,dive,url"`
+	AdvertiseClientURLs []string `json:"advertise-client-urls" validate:"dive,url"`
+}
+
+func main() {
+	path := flag.String("config-file", "/etc/etcd/etcd.conf.yml", "path to the configuration file")
+	flag.Parse()
+
+	// A key in the file that matches no field, such as data-dir in etcd's
+	// full sample, logs a warning; config.WithStrict() makes it an error.
+	cfg, err := config.Load[ServerConfig](context.Background(),
+		config.WithTagName("json"),
+		config.From(config.File(*path)),
+	)
+	if err != nil {
+		// Every bad item at once, e.g.
+		//   config: invalid: listen-peer-urls[1]: does not satisfy "url"
+		log.Fatal(err)
+	}
+	log.Printf("client URLs: %v", cfg.ListenClientURLs) // [http://localhost:2379 http://10.0.0.5:2379]
+}
+```
+
+`File` options:
+
+```go
+config.File(path, config.FileFormat("yaml")) // the extension does not say the format: etcd.conf, app.cfg
+config.File(path, config.Optional())         // a missing file loads as empty instead of failing
+config.WithTagName("yaml")                   // key names from yaml tags instead of config tags
+```
+
+### 12 A format of your own
+
+**Before**, from [Gitea](https://github.com/go-gitea/gitea) ([custom/conf/app.example.ini](https://github.com/go-gitea/gitea/blob/8465bed99464c5ef4abc8e0a6944911d1c5ef358/custom/conf/app.example.ini#L58-L89), [modules/setting/server.go](https://github.com/go-gitea/gitea/blob/8465bed99464c5ef4abc8e0a6944911d1c5ef358/modules/setting/server.go#L151-L224), [modules/setting/config_provider.go](https://github.com/go-gitea/gitea/blob/8465bed99464c5ef4abc8e0a6944911d1c5ef358/modules/setting/config_provider.go#L113-L127)), which reads `app.ini` with [gopkg.in/ini.v1](https://github.com/go-ini/ini):
+
+```ini
+; custom/conf/app.example.ini: the defaults are written here as comments
+[server]
+;; The protocol the server listens on. One of "http", "https", "http+unix", "fcgi" or "fcgi+unix".
+;PROTOCOL = http
+;HTTP_ADDR = 0.0.0.0
+;; The port to listen on for "http" or "https" protocol. Leave empty when using a unix socket.
+;HTTP_PORT = 3000
+;CERT_FILE = https/cert.pem
+;KEY_FILE = https/key.pem
+;GRACEFUL_HAMMER_TIME = 60s
+```
+
+```go
+// modules/setting/server.go: one line per key, each with its default again
+HTTPAddr = sec.Key("HTTP_ADDR").MustString("0.0.0.0")
+HTTPPort = sec.Key("HTTP_PORT").MustString("3000")
+protocolCfg := sec.Key("PROTOCOL").String()
+switch protocolCfg {
+case "", "http":
+	Protocol = HTTP
+case "https":
+	Protocol = HTTPS
+	CertFile = sec.Key("CERT_FILE").String()
+	KeyFile = sec.Key("KEY_FILE").String()
+	// …
+}
+GracefulHammerTime = sec.Key("GRACEFUL_HAMMER_TIME").MustDuration(60 * time.Second)
+
+// modules/setting/config_provider.go
+func (k *iniConfigKey) MustDuration(defaultVal ...time.Duration) time.Duration {
+	s := k.String()
+	v, err := strconv.ParseInt(s, 10, 64)
+	if err == nil {
+		d := time.Duration(v) * time.Second
+		k.key.SetValue(d.String())
+		return d
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		d = util.OptionalArg(defaultVal)
+	}
+	k.key.SetValue(d.String())
+	return d
+}
+```
+
+| | Gitea | loadconf |
+|---|---|---|
+| Reading | one `sec.Key(…).MustXxx(…)` line per key, into package variables | one struct; the format only has to produce a tree |
+| Defaults | written twice: as a comment in `app.example.ini` and as the argument of `MustXxx` | once, in a `default` tag |
+| A bad value | `GRACEFUL_HAMMER_TIME = 60x` becomes 60s without a word | `Load` fails: `server.graceful_hammer_time: invalid duration "60x"` |
+| Port | a string | an `int`, checked by `validate` |
+
+**With loadconf**, changes from example 1: the format is registered once, then `File` and `Profile` accept `.ini` like `.yaml`. loadconf does not depend on an INI library; the parser is yours, here built on gopkg.in/ini.v1.
+
+```ini
+; custom/conf/app.ini: keys match fields case-insensitively, so HTTP_PORT is http_port
+[server]
+PROTOCOL = https
+HTTP_PORT = 3000
+CERT_FILE = /etc/gitea/cert.pem
+KEY_FILE = /etc/gitea/key.pem
+GRACEFUL_HAMMER_TIME = 60s
+```
+
+```go
+package main
+
+import (
+	"context"
+	"log"
+	"maps"
+	"time"
+
+	"gopkg.in/ini.v1"
+
+	"github.com/linzeyan/loadconf/config"
+)
+
+type Config struct {
+	Server struct {
+		Protocol           string        `default:"http" validate:"oneof=http https"`
+		HTTPAddr           string        `default:"0.0.0.0"`
+		HTTPPort           int           `default:"3000" validate:"min=1,max=65535"`
+		CertFile           string
+		KeyFile            string
+		GracefulHammerTime time.Duration `default:"60s"`
+	}
+}
+
+// parseINI returns sections as maps and values as strings. loadconf converts
+// the strings to each field's type, as it does for environment variables.
+func parseINI(data []byte) (map[string]any, error) {
+	f, err := ini.Load(data)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]any{}
+	for _, sec := range f.Sections() {
+		m := map[string]any{}
+		for _, k := range sec.Keys() {
+			m[k.Name()] = k.Value()
+		}
+		if sec.Name() == ini.DefaultSection {
+			maps.Copy(out, m) // keys above the first [section]
+		} else {
+			out[sec.Name()] = m
+		}
+	}
+	return out, nil
+}
+
+func main() {
+	// Register before the first Load. Registering "yaml" or ".yml" again
+	// replaces the built-in parser.
+	config.RegisterFormat("ini", parseINI, ".ini")
+
+	cfg, err := config.Load[Config](context.Background(),
+		config.From(config.File("custom/conf/app.ini")))
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("listening on %s:%d", cfg.Server.HTTPAddr, cfg.Server.HTTPPort)
+}
+```
+
+The same parser serves every source that names a format: `config.Bytes("ini", data)`, and `etcd.Key(cli, "/gitea/app.ini")` once the extension is registered.
+
+### 13 Types and checks of your own
+
+**Before**, from [Dex](https://github.com/dexidp/dex) ([config.yaml.dist](https://github.com/dexidp/dex/blob/b02ead0ba87a320f3328c6860ea45f5b6314e6bd/config.yaml.dist#L50-L96), [cmd/dex/config.go](https://github.com/dexidp/dex/blob/b02ead0ba87a320f3328c6860ea45f5b6314e6bd/cmd/dex/config.go#L90-L132), [cmd/dex/serve.go](https://github.com/dexidp/dex/blob/b02ead0ba87a320f3328c6860ea45f5b6314e6bd/cmd/dex/serve.go#L314-L415)):
+
+```yaml
+# config.yaml.dist
+web:
+  http: 127.0.0.1:5556
+
+  # Uncomment to enable HTTPS endpoint.
+  # https: 127.0.0.1:5554
+  # tlsCert: /etc/dex/tls.crt
+  # tlsKey: /etc/dex/tls.key
+  # tlsMinVersion: 1.2
+  # tlsMaxVersion: 1.3
+
+# Expiration configuration for tokens, signing keys, etc.
+# expiry:
+#   deviceRequests: "5m"
+#   idTokens: "24h"
+```
+
+```go
+// cmd/dex/config.go
+type Expiry struct {
+	IDTokens       string `json:"idTokens"`
+	AuthRequests   string `json:"authRequests"`
+	DeviceRequests string `json:"deviceRequests"`
+	// …
+}
+
+func (c Config) Validate() error {
+	checks := []struct {
+		bad    bool
+		errMsg string
+	}{
+		{c.Web.HTTP == "" && c.Web.HTTPS == "", "must supply a HTTP/HTTPS  address to listen on"},
+		{c.Web.HTTPS != "" && c.Web.TLSCert == "", "no cert specified for HTTPS"},
+		{c.Web.HTTPS != "" && c.Web.TLSKey == "", "no private key specified for HTTPS"},
+		{c.Web.TLSMinVersion != "" && c.Web.TLSMinVersion != "1.2" && c.Web.TLSMinVersion != "1.3", "supported TLS versions are: 1.2, 1.3"},
+		{c.Web.TLSMaxVersion != "" && c.Web.TLSMaxVersion != "1.2" && c.Web.TLSMaxVersion != "1.3", "supported TLS versions are: 1.2, 1.3"},
+		{c.Web.TLSMaxVersion != "" && c.Web.TLSMinVersion != "" && c.Web.TLSMinVersion > c.Web.TLSMaxVersion, "TLSMinVersion greater than TLSMaxVersion"},
+		// … the same TLS checks again for gRPC
+	}
+	// …
+}
+
+// cmd/dex/serve.go: durations are parsed where they are used, after
+// storage has been opened
+idTokensValidFor := 24 * time.Hour // default
+if c.Expiry.IDTokens != "" {
+	var err error
+	idTokensValidFor, err = time.ParseDuration(c.Expiry.IDTokens)
+	if err != nil {
+		return fmt.Errorf("invalid config value %q for id token expiry: %v", c.Expiry.IDTokens, err)
+	}
+}
+// … the same block for AuthRequests and DeviceRequests
+
+allowedTLSVersions := map[string]int{ // the version list again, to convert
+	"1.2": tls.VersionTLS12,
+	"1.3": tls.VersionTLS13,
+}
+```
+
+| | Dex | loadconf |
+|---|---|---|
+| Durations | strings, parsed where they are used; the parse-and-wrap block is written three times | `time.Duration` fields, decoded by `Load` |
+| A bad duration | reported after storage has been opened | `Load` fails before anything is opened |
+| Defaults | `24 * time.Hour // default` in `serve.go`; the struct does not show it | `default:"24h"` on the field |
+| TLS versions | accepted as strings in `Validate`, converted by a second list in `serve.go` | one type: `UnmarshalText` accepts and converts |
+| Error messages | no key: `supported TLS versions are: 1.2, 1.3` stands for four fields | each error carries its key path |
+
+**With loadconf**, changes from example 1: a field type decodes itself, `validate` tags hold the rules about one value, and a `Validate` method holds the rules that relate several.
+
+```yaml
+# configs/app.yaml
+web:
+  http: 127.0.0.1:5556
+  https: 127.0.0.1:5554
+  tls_cert: /etc/dex/tls.crt
+  tls_key: /etc/dex/tls.key
+  tls_min_version: 1.2       # decoded by TLSVersion.UnmarshalText
+expiry:
+  id_tokens: 24h
+  device_requests: 5m
+```
+
+```go
+package main
+
+import (
+	"context"
+	"crypto/tls"
+	"errors"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/linzeyan/loadconf/config"
+)
+
+// TLSVersion decodes "1.2" or "1.3" into crypto/tls's constant: the list of
+// accepted versions and the conversion are one piece of code. A type that
+// implements encoding.TextUnmarshaler decodes from any source's strings.
+type TLSVersion uint16
+
+func (v *TLSVersion) UnmarshalText(b []byte) error {
+	switch string(b) {
+	case "1.2":
+		*v = tls.VersionTLS12
+	case "1.3":
+		*v = tls.VersionTLS13
+	default:
+		return fmt.Errorf("unsupported TLS version %q (want 1.2 or 1.3)", b)
+	}
+	return nil
+}
+
+type Web struct {
+	HTTP          string     `validate:"omitempty,hostname_port"`
+	HTTPS         string     `validate:"omitempty,hostname_port"`
+	TLSCert       string
+	TLSKey        string
+	TLSMinVersion TLSVersion `default:"1.2"`
+	TLSMaxVersion TLSVersion // 0 when unset: Go's default
+}
+
+// Validate holds the rules across fields. It runs after decoding and after
+// the validate tags; each error it returns is reported under this struct's
+// key, web.
+func (w Web) Validate() error {
+	var errs []error
+	if w.HTTP == "" && w.HTTPS == "" {
+		errs = append(errs, errors.New("set http, https or both"))
+	}
+	if w.HTTPS != "" && (w.TLSCert == "" || w.TLSKey == "") {
+		errs = append(errs, errors.New("https needs tls_cert and tls_key"))
+	}
+	if w.TLSMaxVersion != 0 && w.TLSMinVersion > w.TLSMaxVersion {
+		errs = append(errs, errors.New("tls_min_version is above tls_max_version"))
+	}
+	return errors.Join(errs...)
+}
+
+type Expiry struct {
+	IDTokens       time.Duration `default:"24h" validate:"min=1m"`
+	AuthRequests   time.Duration `default:"24h" validate:"min=1m"`
+	DeviceRequests time.Duration `default:"5m" validate:"min=1m"`
+}
+
+type Config struct {
+	Web    Web
+	Expiry Expiry
+}
+
+func main() {
+	cfg, err := config.Load[Config](context.Background(), config.From(config.Profile("app")))
+	if err != nil {
+		// Decoding comes first; each stage reports all its problems at once,
+		// each with its key path:
+		//   config: decode: web.tls_min_version: unsupported TLS version "1.1" (want 1.2 or 1.3)
+		// Then the rules, once every value has decoded:
+		//   config: invalid: web: https needs tls_cert and tls_key
+		//   expiry.id_tokens: does not satisfy "min=1m"
+		log.Fatal(err)
+	}
+	log.Printf("id tokens valid for %s", cfg.Expiry.IDTokens)
+}
+```
+
+Rules that need code go in methods of the type they concern:
+
+| Method | Runs | For |
+|---|---|---|
+| `UnmarshalText([]byte) error` | while decoding a string | a value written as one string: versions, levels, addresses (`netip.Addr` already has it) |
+| `UnmarshalConfig(any) error` | while decoding, with the raw value: map, list, string, number | a value written in several shapes, e.g. `"5s"` or `{min: 1s, max: 5s}` |
+| `SetDefaults()` | before decoding, after the `default` tags | defaults that are computed, e.g. from the host name |
+| `Validate() error` | after decoding and the `validate` tags | rules across fields |
+
+The `validate` rules are listed under [Struct tags](#struct-tags).
+
+### 14 A source of your own
+
+**Before**, from [CDS](https://github.com/ovh/cds) ([docs/content/hosting/configuration.md](https://github.com/ovh/cds/blob/557c0b78924e38d064df907f4849c0a3d96d8470/docs/content/hosting/configuration.md#L55-L89), [engine/config.go](https://github.com/ovh/cds/blob/557c0b78924e38d064df907f4849c0a3d96d8470/engine/config.go#L253-L306), [engine/config_vault.go](https://github.com/ovh/cds/blob/557c0b78924e38d064df907f4849c0a3d96d8470/engine/config_vault.go#L35-L52)). The whole TOML file is stored as one Consul key or one Vault secret:
+
+```bash
+# docs/content/hosting/configuration.md
+$ consul kv put cds/config.api.toml -
+<PASTE YOUR CONFIGURATION>
+<ENDS WITH CTRL-D>
+Success! Data written to: cds/config.api.toml
+
+$ $PATH_TO_CDS/engine start api --remote-config localhost:8500 --remote-config-key cds/config.api.toml
+
+# or
+$ myConfig=`cat conf.toml`
+$ vault write secret/cds/conf data=$myConfig
+$ $PATH_TO_CDS/engine start api --vault-addr=http://myvault.com  --vault-token=XXXX
+```
+
+```go
+// engine/config.go: one source out of three
+switch {
+case remoteCfg != "":
+	viper.AddRemoteProvider("consul", remoteCfg, remoteCfgKey)
+	viper.SetConfigType("toml")
+	if err := viper.ReadRemoteConfig(); err != nil {
+		sdk.Exit(err.Error())
+	}
+case vaultAddr != "" && vaultToken != "":
+	// I hope one day vault will be a standard viper remote provider
+	s, err := VaultNewSecret(vaultToken, vaultAddr)
+	// …
+	cfgFileContent, err := s.GetFromVault(vaultConfKey) // "/secret/cds/conf"
+	// …
+	viper.SetConfigType("toml")
+	if err := viper.ReadConfig(bytes.NewBufferString(cfgFileContent)); err != nil {
+		sdk.Exit("Unable to read config: %v", err)
+	}
+// … or a local file
+}
+
+// engine/config_vault.go
+func (secret *VaultSecret) GetFromVault(s string) (string, error) {
+	conf, err := secret.Client.Logical().Read(s)
+	if err != nil {
+		return "", sdk.WithStack(err)
+	} else if conf == nil {
+		log.Warn(context.Background(), "vault> no value found at %q", s)
+		return "", nil
+	}
+	// …
+}
+```
+
+| | CDS | loadconf |
+|---|---|---|
+| Sources | one of Consul, Vault or a file, picked by a `switch` | layered: a file, then Consul, then variables, merged key by key |
+| A missing key | Vault: a warning, then an empty configuration | `Load` fails, naming the source |
+| Format and path | TOML, and the Vault path `/secret/cds/conf`, fixed in code | fields of the source |
+| Errors | `sdk.Exit` at every step | `Load` returns them |
+| Token | `--vault-token=XXXX` on the command line, where `ps` shows it | the variable `CONSUL_HTTP_TOKEN`, sent as a header |
+
+**With loadconf**, changes from example 9: a type with `Load` and `String` is a source; with `Watch` as well, it takes part in hot reload. This one reads a Consul key through Consul's HTTP API, so it needs no Consul client.
+
+```bash
+# The document in Consul holds what operators change at run time.
+consul kv put order-service/prod.toml - <<'EOF'
+max_items = 50
+[log]
+level = "debug"
+EOF
+```
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+
+	"github.com/linzeyan/loadconf/config"
+)
+
+// consulKey loads one Consul KV key holding a whole document.
+type consulKey struct {
+	addr   string // e.g. http://127.0.0.1:8500
+	key    string // e.g. order-service/prod.toml
+	format string // "toml": the key's content, parsed by config.Parse
+	token  string // an ACL token, or ""
+}
+
+func (c *consulKey) String() string { return "consul(" + c.key + ")" }
+
+func (c *consulKey) Load(ctx context.Context) (map[string]any, error) {
+	data, _, err := c.get(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	return config.Parse(c.format, data)
+}
+
+// Watch blocks until ctx is done. Each request is a Consul blocking query: it
+// returns when the key's index moves past the last one, or after five
+// minutes with the same index. A spurious call to changed is harmless: the
+// loader compares the reloaded configuration with the current one.
+func (c *consulKey) Watch(ctx context.Context, changed func()) error {
+	_, index, err := c.get(ctx, "")
+	for err == nil {
+		var next string
+		if _, next, err = c.get(ctx, index); err == nil && next != index {
+			index = next
+			changed()
+		}
+	}
+	if ctx.Err() != nil {
+		return nil
+	}
+	return err
+}
+
+func (c *consulKey) get(ctx context.Context, index string) ([]byte, string, error) {
+	url := c.addr + "/v1/kv/" + c.key + "?raw"
+	if index != "" {
+		url += "&wait=5m&index=" + index
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	if c.token != "" {
+		req.Header.Set("X-Consul-Token", c.token)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK { // 404: the key does not exist
+		return nil, "", fmt.Errorf("GET /v1/kv/%s: %s", c.key, resp.Status)
+	}
+	data, err := io.ReadAll(resp.Body)
+	return data, resp.Header.Get("X-Consul-Index"), err
+}
+
+type Config struct {
+	Log      config.Log
+	MaxItems int `default:"100"`
+}
+
+func main() {
+	ctx := context.Background()
+	loader := config.New[Config](config.From(
+		config.Profile("app"), // the settings in version control
+		&consulKey{
+			addr:   "http://127.0.0.1:8500",
+			key:    "order-service/prod.toml",
+			format: "toml",
+			token:  os.Getenv("CONSUL_HTTP_TOKEN"),
+		},
+		config.Env("APP"), // secrets
+	))
+	cfg, err := loader.Load(ctx)
+	if err != nil {
+		// e.g. config: load consul(order-service/prod.toml): GET /v1/kv/order-service/prod.toml: 404 Not Found
+		log.Fatal(err)
+	}
+	log.Printf("max items: %d", cfg.MaxItems)
+	// `consul kv put` on the key reloads the configuration, as a file
+	// change does (example 9).
+	go loader.Watch(ctx)
+	// …
+}
+```
+
+Built-in sources for documents that do not live in files:
+
+```go
+//go:embed defaults.yaml
+var defaults []byte
+
+config.From(
+	config.Bytes("yaml", defaults),                  // defaults compiled into the binary
+	config.File("/etc/app/app.yaml", config.Optional()),
+)
+
+// In a test: a configuration without any file
+cfg, err := config.Load[Config](ctx, config.From(config.Map(map[string]any{
+	"max_items": 2,
+	"log":       map[string]any{"level": "debug"},
+})))
+```
+
 ## Reference
 
 ### Sources and precedence
@@ -1381,7 +2167,7 @@ func TestPlaceRejectsTooManyItems(t *testing.T) {
 ```go
 cfg, err := config.Load[Config](ctx, config.From(
 	config.Profile("app"),                                 // configs/app.yaml + configs/app.$ENV.yaml
-	config.File("/etc/app/extra.toml", config.Optional()), // .json .yaml .yml .toml; Optional: may be missing
+	config.File("/etc/app/extra.toml", config.Optional()), // .json .yaml .yml .toml, or a registered format; Optional: may be missing
 	config.DotEnv(".env", "APP", config.DotEnvOptional()), // same names as Env
 	etcd.Prefix(cli, "/order-service/prod/"),              // /order-service/prod/mysql/main/host -> mysql.main.host
 	config.Env("APP"),                                     // real environment variables
@@ -1390,7 +2176,9 @@ cfg, err := config.Load[Config](ctx, config.From(
 // instances merge by name. Fields with an env tag are set after all sources.
 // Also available: config.Bytes("yaml", data) and config.Map(m), for tests and
 // defaults built in code. A custom source implements config.Source, and
-// config.WatchableSource to take part in hot reload.
+// config.WatchableSource to take part in hot reload (example 14).
+// config.RegisterFormat("ini", parse, ".ini") adds a format (example 12);
+// config.FileFormat("yaml") reads a file whose extension does not name one.
 ```
 
 ### Which sources read ENV
@@ -1428,16 +2216,31 @@ type Config struct {
 	Port    int             `default:"8080" env:"PORT"` // env: read $PORT after all sources
 	Timeout time.Duration   `default:"5s"`              // durations are strings: "500ms", "5m"
 	Buffer  config.ByteSize `default:"64MiB"`           // 64MiB = 64×1024², 64MB = 64×1000²
-	Hosts   []string        `validate:"min=1"`          // go-playground/validator rules
+	Hosts   []string        `validate:"min=1,dive,hostname_port"` // rules: see below
 	Token   config.Secret   // prints as ******; Token.Value() is the real string
 	GRPC    GRPCConfig      `env-prefix:"GRPC_"`        // prefix for the env tags inside GRPCConfig
 	Legacy  string          `config:"legacy_name"`      // explicit key; "-" skips the field
 }
 // A type can hook into loading by implementing SetDefaults(), Validate() error
-// or UnmarshalConfig(any) error. encoding.TextUnmarshaler types, such as
-// netip.Addr, decode from strings. config.WithTagName("yaml") reads yaml tags
-// instead of config tags.
+// or UnmarshalConfig(any) error (example 13). encoding.TextUnmarshaler types,
+// such as netip.Addr, decode from strings. config.WithTagName("yaml") reads
+// yaml tags instead of config tags (example 11).
 ```
+
+`validate` holds rules separated by commas, checked after decoding. A field reports the first rule it fails. An unknown rule, or a parameter that does not fit the field's type, fails `Load` whatever the value, so a typo cannot turn a check off.
+
+| Rule | Passes when |
+|---|---|
+| `required` | the value is set: not zero, not empty, not a nil pointer |
+| `omitempty` | always; when the value is empty, the rules after it are skipped |
+| `min=n`, `max=n`, `len=n`, `gt=n`, `gte=n`, `lt=n`, `lte=n` | strings (in characters), slices and maps compare their length; numbers, `time.Duration` and `config.ByteSize` compare their value, so `min=1s` and `max=64MiB` work. `gte` is `min`, `lte` is `max` |
+| `oneof=a b c` | the value is one of the values separated by spaces |
+| `url` | an absolute URL with a scheme and a host or path: `https://host/path`, `file:///tmp/x` |
+| `hostname_port` | `host:port` or `:port`, with a port from 1 to 65535 |
+| `ip`, `cidr` | an IPv4 or IPv6 address; a network such as `10.0.0.0/8` |
+| `dive` | the rules after it apply to each element of a slice or map |
+
+A `Secret` is checked by the string it holds. Fields of structs inside slices, maps and `Named` are checked without `dive`. Rules that need code, such as one field depending on another, go in a `Validate() error` method.
 
 ### Open and New
 
