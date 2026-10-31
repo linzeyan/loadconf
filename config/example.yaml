@@ -1,0 +1,855 @@
+# yaml-language-server: $schema=./schema.json
+#
+# loadconf 設定範例：列出所有內建設定，最後附三個自訂設定的範例。
+# 本檔由 config/example_gen_test.go 從 Go 型別產生，請勿手動修改；更新請執行 make generate。
+#
+# - 每個值都能通過驗證；沒特別寫的是預設值，空值代表不使用該功能。
+# - 互斥的欄位只填其中一個，另一個留空並在註解說明。
+# - schema.json 只描述內建設定。每個內建區段（log 除外）都可寫成單一設定，
+#   或 config.Named 的多個實例：以名稱為鍵的對映，或每項帶 name 的清單。
+#
+# 載入本檔的 Go 程式：
+#
+#   cfg, err := config.Load[AppConfig](ctx,
+#       config.From(config.File("example.yaml")),
+#       config.WithStrict(), // 未知的鍵視為錯誤
+#   )
+#
+#   // AppConfig holds the built-in settings under the keys schema.json
+#   // describes, plus three sections of the application's own.
+#   type AppConfig struct {
+#       Log           config.Log                     `config:"log"`
+#       MySQL         config.Named[config.MySQL]     `config:"mysql"`
+#       Postgres      config.Named[config.Postgres]  `config:"postgres"`
+#       SQLServer     config.Named[config.SQLServer] `config:"sqlserver"`
+#       Oracle        config.Named[config.Oracle]    `config:"oracle"`
+#       SQLite        config.Named[config.SQLite]    `config:"sqlite"`
+#       Redis         config.Redis                   `config:"redis"`
+#       Mongo         config.Mongo                   `config:"mongo"`
+#       Cassandra     config.Cassandra               `config:"cassandra"`
+#       Scylla        config.Cassandra               `config:"scylla"`
+#       ClickHouse    config.ClickHouse              `config:"clickhouse"`
+#       Doris         config.StreamLoad              `config:"doris"`
+#       Trino         config.Trino                   `config:"trino"`
+#       Elasticsearch config.Elasticsearch           `config:"elasticsearch"`
+#       OpenSearch    config.OpenSearch              `config:"opensearch"`
+#       Kafka         config.Kafka                   `config:"kafka"`
+#       MQTT          config.MQTT                    `config:"mqtt"`
+#       EMQX          config.MQTTREST                `config:"emqx"`
+#
+#       Server     Server               `config:"server"`
+#       Tenants    config.Named[Tenant] `config:"tenants"`
+#       RateLimits map[string]RateLimit `config:"rate_limits"`
+#   }
+
+# ── log：config.Log ──
+# 日誌：logger、logger/logger_zap、logger/logger_zerolog 讀這個區段。
+log:
+  # 最低等級，可在熱重載時變更。
+  level: info
+  # stdout、stderr、file 輸出的預設格式：json 或 text。
+  format: json
+  # 加上呼叫處的檔案與行號。
+  add_source: false
+  # 此等級以上附堆疊；none 關閉。
+  stack_level: error
+  # 時間格式：rfc3339、rfc3339milli（預設）、rfc3339nano、unix、unixmilli、unixnano，或 Go layout。
+  time_format: rfc3339milli
+  # 時間用 UTC 而不是本地時區。
+  utc: false
+  # stdout、stderr、file 的 JSON 縮排輸出，供本機開發。
+  pretty_json: false
+  # 加上 service 欄位，也是 syslog、GELF、OTLP 的程序名稱；空值為執行檔名稱。
+  service: orders
+  # 加上 host 欄位。
+  hostname: true
+  # 每筆紀錄都加上的固定欄位，例如 env、version。
+  fields: {env: production}
+  # 輸出目的地，以名稱為鍵；沒有設定時輸出到 stdout。
+  # type 預設等於名稱，所以名為 file 的輸出可以省略 type。
+  outputs:
+    # 標準輸出，文字格式。
+    console:
+      # stdout、stderr、file、syslog、gelf、elasticsearch、otlp，或以 logger.WithSink 註冊的自訂類型；空值等於名稱。
+      type: stdout
+      # 此輸出的最低等級；與 log.level 取較高者。
+      level: debug
+      # 覆蓋 log.format（stdout、stderr、file）；其他輸出一律 JSON。
+      format: text
+      # 關閉此輸出，例如只在某個環境關掉。
+      disabled: false
+    # 標準錯誤，只收 error 以上。
+    errors:
+      # stdout、stderr、file、syslog、gelf、elasticsearch、otlp，或以 logger.WithSink 註冊的自訂類型；空值等於名稱。
+      type: stderr
+      # 此輸出的最低等級；與 log.level 取較高者。
+      level: error
+    # 日誌檔，依大小輪替。
+    file:
+      # stdout、stderr、file、syslog、gelf、elasticsearch、otlp，或以 logger.WithSink 註冊的自訂類型；空值等於名稱。
+      type: file
+      # 日誌檔路徑（file 必填）。
+      path: logs/app.log
+      # 超過此大小就輪替（file）。
+      max_size: 100MiB
+      # 保留的輪替檔數量，0 為全部保留（file）。
+      max_backups: 7
+      # 輪替檔保留時間，0 為不限（file）。
+      max_age: 168h
+      # 輪替檔名用本地時間而不是 UTC（file）。
+      local_time: false
+      # gzip 壓縮：輪替檔（file）、UDP 封包（gelf）、請求本文（elasticsearch、otlp）。
+      compress: true
+    syslog:
+      # stdout、stderr、file、syslog、gelf、elasticsearch、otlp，或以 logger.WithSink 註冊的自訂類型；空值等於名稱。
+      type: syslog
+      # syslog：udp、tcp、unix，空值為本機 syslog daemon；gelf：udp（預設）或 tcp。
+      network: udp
+      # host:port（syslog、gelf）或 socket 路徑（unix syslog）；設了 network 就必填。
+      addr: "syslog:514"
+      # syslog facility，例如 local0（預設）、user、daemon。
+      facility: local0
+      # syslog 的 app name；空值為 log.service。
+      tag: orders
+      # rfc5424（預設）或 rfc3164。
+      syslog_format: rfc5424
+      # 單次寫入或匯出的逾時（syslog、gelf、elasticsearch、otlp）。
+      timeout: 5s
+    # GELF，送往 Graylog。
+    graylog:
+      # stdout、stderr、file、syslog、gelf、elasticsearch、otlp，或以 logger.WithSink 註冊的自訂類型；空值等於名稱。
+      type: gelf
+      # gzip 壓縮：輪替檔（file）、UDP 封包（gelf）、請求本文（elasticsearch、otlp）。
+      compress: true
+      # syslog：udp、tcp、unix，空值為本機 syslog daemon；gelf：udp（預設）或 tcp。
+      network: udp
+      # host:port（syslog、gelf）或 socket 路徑（unix syslog）；設了 network 就必填。
+      addr: "graylog:12201"
+      # 超過此大小的 UDP 封包會分塊（gelf，預設 1420）。
+      chunk_size: 1420
+    elasticsearch:
+      # stdout、stderr、file、syslog、gelf、elasticsearch、otlp，或以 logger.WithSink 註冊的自訂類型；空值等於名稱。
+      type: elasticsearch
+      # 節點 URL（elasticsearch 必填）。
+      addresses: ["https://es1:9200"]
+      # 使用者；與 api_key 擇一（elasticsearch）。
+      username: elastic
+      # 密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。
+      password: change-me
+      # API key；與 username 擇一（elasticsearch）。
+      api_key: ""
+      # 目標 index 或 data stream；{service} 換成 log.service，{date:LAYOUT} 換成紀錄日期（elasticsearch）。
+      index: "logs-{service}-default"
+      # 每個請求帶上的標頭（elasticsearch、otlp）。
+      headers: {}
+      # 單次寫入或匯出的逾時（syslog、gelf、elasticsearch、otlp）。
+      timeout: 5s
+      # 非同步送出的批次大小（elasticsearch、otlp）。
+      batch_size: 500
+      # 未滿的批次最長等待時間（elasticsearch、otlp）。
+      flush_interval: 1s
+      # 佇列長度；佇列滿時丟棄紀錄（elasticsearch、otlp）。
+      queue_size: 10000
+      # TLS：tcp 上的 syslog、gelf，以及 elasticsearch、otlp。
+      tls:
+        # 啟用 TLS。其餘欄位只在啟用時生效。
+        enabled: false
+        # 信任的 CA（PEM）；空值用系統根憑證。
+        ca_file: ""
+        # mTLS 用戶端憑證（PEM），與 key_file 成對設定。
+        cert_file: ""
+        # mTLS 用戶端私鑰（PEM）。
+        key_file: ""
+        # 驗證伺服器憑證用的主機名稱；空值取連線位址。
+        server_name: ""
+        # 略過伺服器憑證驗證，僅限測試環境。
+        insecure_skip_verify: false
+        # 最低 TLS 版本，空值為 1.2。
+        min_version: "1.2"
+    # OpenTelemetry collector。
+    otlp:
+      # stdout、stderr、file、syslog、gelf、elasticsearch、otlp，或以 logger.WithSink 註冊的自訂類型；空值等於名稱。
+      type: otlp
+      # collector 的 host:port 或 URL；空值讀 OTEL_EXPORTER_OTLP_* 環境變數（otlp）。
+      endpoint: "otel-collector:4317"
+      # grpc（預設）或 http（otlp）。
+      protocol: grpc
+      # 不用 TLS 連 collector（otlp）。
+      insecure: true
+      # 每個請求帶上的標頭（elasticsearch、otlp）。
+      headers: {}
+      # 單次寫入或匯出的逾時（syslog、gelf、elasticsearch、otlp）。
+      timeout: 5s
+      # 非同步送出的批次大小（elasticsearch、otlp）。
+      batch_size: 500
+      # 未滿的批次最長等待時間（elasticsearch、otlp）。
+      flush_interval: 1s
+      # 佇列長度；佇列滿時丟棄紀錄（elasticsearch、otlp）。
+      queue_size: 10000
+    # 自訂類型：type 是以 logger.WithSink 註冊的名稱，設定放在 options。這裡先關閉。
+    alerts:
+      # stdout、stderr、file、syslog、gelf、elasticsearch、otlp，或以 logger.WithSink 註冊的自訂類型；空值等於名稱。
+      type: slack
+      # 此輸出的最低等級；與 log.level 取較高者。
+      level: error
+      # 關閉此輸出，例如只在某個環境關掉。
+      disabled: true
+      # 自訂類型輸出的設定。
+      options: {channel: "#alerts", webhook_url: https://hooks.slack.com/services/T000/B000/XXXX}
+
+# ── mysql：config.Named[config.MySQL] ──
+# MySQL（conn_sql、conn_gorm）。config.Named 可放多個實例，程式以 cfg.MySQL.Get("main") 取用。
+mysql:
+  main:
+    # 完整連線字串，與 host 等欄位擇一；兩者都填時，欄位覆蓋連線字串中的對應部分。
+    # 例如 app:pw@tcp(mysql:3306)/orders?parseTime=true
+    dsn: ""
+    # 主機名稱或 IP。
+    host: mysql
+    # 連接埠。
+    port: 3306
+    # 使用者。
+    user: app
+    # 密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。
+    password: change-me
+    # 資料庫名稱。
+    database: orders
+    # go-sql-driver 的 DSN 參數，例如 parseTime、loc、charset、timeout。
+    params: {loc: Local, parseTime: "true"}
+    # 開啟連線時連通性檢查的逾時。
+    ping_timeout: 3s
+    # TLS 設定。
+    # 其他欄位見 log.outputs.elasticsearch.tls。
+    tls: {enabled: false}
+    # 連線池：最大開啟連線數，0 為不限。
+    max_open_conns: 20
+    # 連線池：最大閒置連線數，不可超過 max_open_conns。
+    max_idle_conns: 10
+    # 連線池：連線最長存活時間，0 為不限。
+    conn_max_lifetime: 1h
+    # 連線池：連線最長閒置時間，0 為不限。
+    conn_max_idle_time: 10m
+
+# ── postgres：config.Named[config.Postgres] ──
+# PostgreSQL（conn_sql、conn_gorm）。
+postgres:
+  main:
+    # 完整連線字串，與 host 等欄位擇一；兩者都填時，欄位覆蓋連線字串中的對應部分。
+    # URL（postgres://app:pw@postgres:5432/orders）或 key=value 形式。
+    dsn: ""
+    # 主機名稱或 IP。
+    host: postgres
+    # 連接埠。
+    port: 5432
+    # 使用者。
+    user: app
+    # 密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。
+    password: change-me
+    # 資料庫名稱。
+    database: orders
+    # libpq 連線參數（sslmode、connect_timeout）或執行期參數（search_path、application_name、statement_timeout）。
+    params: {application_name: orders, sslmode: disable}
+    # 開啟連線時連通性檢查的逾時。
+    ping_timeout: 3s
+    # TLS 設定；啟用時取代 sslmode 推導出的 TLS 設定。
+    # 其他欄位見 log.outputs.elasticsearch.tls。
+    tls: {enabled: false}
+    # 連線池：最大開啟連線數，0 為不限。
+    max_open_conns: 20
+    # 連線池：最大閒置連線數，不可超過 max_open_conns。
+    max_idle_conns: 10
+    # 連線池：連線最長存活時間，0 為不限。
+    conn_max_lifetime: 1h
+    # 連線池：連線最長閒置時間，0 為不限。
+    conn_max_idle_time: 10m
+
+# ── sqlserver：config.Named[config.SQLServer] ──
+# SQL Server（conn_mssql、conn_gorm_mssql）。
+sqlserver:
+  main:
+    # 完整連線字串，與 host 等欄位擇一；兩者都填時，欄位覆蓋連線字串中的對應部分。
+    # 例如 sqlserver://app:pw@sqlserver:1433?database=orders
+    dsn: ""
+    # 主機名稱或 IP。
+    host: sqlserver
+    # 連接埠；設了 instance 時忽略。
+    port: 1433
+    # 具名執行個體，經 SQL Server Browser 解析連接埠。
+    instance: ""
+    # 使用者。
+    user: app
+    # 密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。
+    password: change-me
+    # 資料庫名稱。
+    database: orders
+    # go-mssqldb 連線參數，例如 app name、dial timeout（秒）、encrypt（disable、false、true、strict）。
+    # 啟用 TLS 時 encrypt 未設定則視為 true。
+    params: {app name: orders, encrypt: "true"}
+    # 開啟連線時連通性檢查的逾時。
+    ping_timeout: 3s
+    # 憑證驗證設定；CA、server_name 與用戶端憑證在加密開啟時生效。
+    # 其他欄位見 log.outputs.elasticsearch.tls。
+    tls: {enabled: false}
+    # 連線池：最大開啟連線數，0 為不限。
+    max_open_conns: 20
+    # 連線池：最大閒置連線數，不可超過 max_open_conns。
+    max_idle_conns: 10
+    # 連線池：連線最長存活時間，0 為不限。
+    conn_max_lifetime: 1h
+    # 連線池：連線最長閒置時間，0 為不限。
+    conn_max_idle_time: 10m
+
+# ── oracle：config.Named[config.Oracle] ──
+# Oracle（conn_oracle，go-ora）。
+oracle:
+  main:
+    # 完整連線字串，例如 oracle://app:pw@oracle:1521/ORCLPDB1。dsn、connect_string、host 三擇一。
+    dsn: ""
+    # 主機名稱或 IP。
+    host: oracle
+    # 連接埠。
+    port: 1521
+    # 服務名稱；與 sid 擇一。
+    service: ORCLPDB1
+    # 舊式系統識別碼（SID）；與 service 擇一。
+    sid: ""
+    # EZConnect 字串或完整 TNS 描述，取代 host、port、service、sid，用於 RAC 或 failover。
+    connect_string: ""
+    # 使用者。
+    user: app
+    # 密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。
+    password: change-me
+    # go-ora URL 選項，例如 CONNECTION TIMEOUT（秒）、PREFETCH_ROWS、WALLET。
+    params: {CONNECTION TIMEOUT: "30"}
+    # 開啟連線時連通性檢查的逾時。
+    ping_timeout: 3s
+    # 啟用 TCPS；go-ora 以 wallet（params 的 WALLET）或系統根憑證驗證。
+    # 其他欄位見 log.outputs.elasticsearch.tls。
+    tls: {enabled: false}
+    # 連線池：最大開啟連線數，0 為不限。
+    max_open_conns: 20
+    # 連線池：最大閒置連線數，不可超過 max_open_conns。
+    max_idle_conns: 10
+    # 連線池：連線最長存活時間，0 為不限。
+    conn_max_lifetime: 1h
+    # 連線池：連線最長閒置時間，0 為不限。
+    conn_max_idle_time: 10m
+
+# ── sqlite：config.Named[config.SQLite] ──
+# SQLite（conn_sqlite、conn_gorm_sqlite）。
+sqlite:
+  main:
+    # 檔案路徑、file: URI 或 :memory:。記憶體資料庫只屬於一條連線，連線池會限制為 1。
+    path: data/app.db
+    # 開啟模式：ro 唯讀、rw 讀寫、rwc 讀寫且不存在時建立（空值即 rwc）、memory。
+    mode: rwc
+    # 等待鎖的時間，逾時回傳 SQLITE_BUSY。
+    busy_timeout: 5s
+    # 日誌模式；空值保留資料庫原本的設定。
+    journal_mode: wal
+    # 同步模式；空值為 full，WAL 下用 normal 安全且較快。
+    synchronous: normal
+    # 啟用外鍵約束。
+    foreign_keys: true
+    # 交易的 BEGIN 模式；空值為 deferred。immediate 可避免讀交易之後寫入時的 SQLITE_BUSY。
+    tx_lock: immediate
+    # 每條連線都套用的其他 PRAGMA。
+    pragmas: {cache_size: "-20000"}
+    # 連線池：最大開啟連線數，0 為不限。
+    max_open_conns: 20
+    # 連線池：最大閒置連線數，不可超過 max_open_conns。
+    max_idle_conns: 10
+    # 連線池：連線最長存活時間，0 為不限。
+    conn_max_lifetime: 1h
+    # 連線池：連線最長閒置時間，0 為不限。
+    conn_max_idle_time: 10m
+
+# ── redis：config.Redis ──
+# Redis（conn_redis）：單機、cluster 或 sentinel。
+redis:
+  # single、cluster 或 sentinel；空值時推斷：有 master_name 為 sentinel，多個 addrs 為 cluster，否則 single。
+  mode: single
+  # host:port 清單：單機一個位址、cluster 的種子節點，或 sentinel 節點。
+  addrs: ["redis:6379"]
+  # sentinel 模式必填的 master 名稱。
+  master_name: ""
+  # ACL 使用者；空值為 default。
+  username: ""
+  # 密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。
+  password: change-me
+  # 資料庫編號；cluster 模式只能是 0。
+  db: 0
+  # 連 sentinel 節點的使用者。
+  sentinel_username: ""
+  # 連 sentinel 節點的密碼。
+  sentinel_password: ""
+  # 開啟連線時連通性檢查的逾時。
+  ping_timeout: 3s
+  # TLS 設定。
+  # 其他欄位見 log.outputs.elasticsearch.tls。
+  tls: {enabled: false}
+  # 驅動程式的其他選項：鍵是驅動設定結構的欄位名稱轉成 snake_case，
+  # 對應 go-redis 的 UniversalOptions，例如 pool_size、read_timeout。
+  options: {pool_size: 20}
+
+# ── mongo：config.Mongo ──
+# MongoDB（conn_mongo）。
+mongo:
+  # mongodb:// 或 mongodb+srv:// 連線字串；與 hosts 擇一。
+  uri: ""
+  # host:port 清單。
+  hosts: ["mongo:27017"]
+  # 預設資料庫。
+  database: orders
+  # 使用者。
+  username: app
+  # 密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。
+  password: change-me
+  # 驗證用的資料庫，常見為 admin。
+  auth_source: admin
+  # 驗證機制，例如 SCRAM-SHA-256；空值由驅動協商。
+  auth_mechanism: SCRAM-SHA-256
+  # 連線字串選項，例如 replicaSet、appName、readPreference、maxPoolSize；覆蓋 uri 中的同名選項。
+  params: {appName: orders}
+  # 開啟連線時連通性檢查的逾時。
+  ping_timeout: 3s
+  # TLS 設定。
+  # 其他欄位見 log.outputs.elasticsearch.tls。
+  tls: {enabled: false}
+
+# ── cassandra：config.Cassandra ──
+# Cassandra（conn_cassandra）。
+cassandra:
+  # contact points，host 或 host:port。
+  hosts: [cassandra1, cassandra2]
+  # hosts 沒寫連接埠時使用的連接埠。
+  port: 9042
+  # keyspace。
+  keyspace: orders
+  # 使用者。
+  username: app
+  # 密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。
+  password: change-me
+  # 優先使用的資料中心，啟用 DC-aware、token-aware 路由；多資料中心叢集建議設定。
+  local_dc: dc1
+  # 壓縮：snappy、lz4，空值不壓縮。
+  compression: snappy
+  # 簡單重試策略的重試次數。
+  retries: 3
+  # TLS 設定。
+  # 其他欄位見 log.outputs.elasticsearch.tls。
+  tls: {enabled: false}
+  # 驅動程式的其他選項：鍵是驅動設定結構的欄位名稱轉成 snake_case，
+  # 對應 gocql 的 ClusterConfig，例如 num_conns、timeout。
+  options: {num_conns: 2}
+
+# ── scylla：config.Cassandra ──
+# ScyllaDB（conn_scylla），欄位與 cassandra 相同。
+scylla:
+  # contact points，host 或 host:port。
+  hosts: [scylla1, scylla2]
+  # hosts 沒寫連接埠時使用的連接埠。
+  port: 9042
+  # keyspace。
+  keyspace: orders
+  # 使用者。
+  username: app
+  # 密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。
+  password: change-me
+  # 優先使用的資料中心，啟用 DC-aware、token-aware 路由；多資料中心叢集建議設定。
+  local_dc: dc1
+  # 壓縮：snappy、lz4，空值不壓縮。
+  compression: snappy
+  # 簡單重試策略的重試次數。
+  retries: 3
+  # TLS 設定。
+  # 其他欄位見 log.outputs.elasticsearch.tls。
+  tls: {enabled: false}
+  # 驅動程式的其他選項：鍵是驅動設定結構的欄位名稱轉成 snake_case，
+  # 對應 gocql 的 ClusterConfig，例如 num_conns、timeout。
+  options: {num_conns: 2}
+
+# ── clickhouse：config.ClickHouse ──
+# ClickHouse（conn_clickhouse）。
+clickhouse:
+  # 完整連線字串，例如 clickhouse://default:pw@clickhouse:9000/default；與 addrs 擇一。
+  dsn: ""
+  # host:port 清單：native 用 9000（TLS 9440），http 用 8123（TLS 8443）。
+  addrs: ["clickhouse:9000"]
+  # native 或 http。
+  protocol: native
+  # 預設資料庫。
+  database: default
+  # 使用者。
+  username: default
+  # 密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。
+  password: ""
+  # 壓縮方式；gzip、deflate、br 只限 http。等級用 options.compression.level 設定。
+  compression: lz4
+  # 開啟連線時連通性檢查的逾時。
+  ping_timeout: 3s
+  # TLS 設定。
+  # 其他欄位見 log.outputs.elasticsearch.tls。
+  tls: {enabled: false}
+  # 連線池：最大開啟連線數，0 為不限。
+  max_open_conns: 20
+  # 連線池：最大閒置連線數，不可超過 max_open_conns。
+  max_idle_conns: 10
+  # 連線池：連線最長存活時間，0 為不限。
+  conn_max_lifetime: 1h
+  # 連線池：連線最長閒置時間，0 為不限。
+  conn_max_idle_time: 10m
+  # 驅動程式的其他選項：鍵是驅動設定結構的欄位名稱轉成 snake_case，
+  # 對應 clickhouse-go 的 Options，例如 dial_timeout、settings。
+  options: {dial_timeout: 5s}
+
+# ── doris：config.StreamLoad ──
+# Doris／StarRocks Stream Load（conn_streamload）。
+doris:
+  # doris 或 starrocks。
+  flavor: doris
+  # FE 的 HTTP 端點，host:port 或 http(s)://host:port（預設連接埠 8030）；輪流使用。
+  addrs: ["doris-fe:8030"]
+  # 使用者。
+  username: root
+  # 密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。
+  password: ""
+  # 資料庫（必填）。
+  database: orders
+  # 預設寫入的資料表。
+  table: events
+  # 資料格式：json 或 csv。
+  format: json
+  # 每次載入都帶上的屬性，例如 column_separator、strict_mode、timezone、max_filter_ratio。
+  headers: {strict_mode: "true"}
+  # 自動產生的 load label 前綴。
+  label_prefix: orders
+  # 單次 HTTP 載入請求的逾時。
+  timeout: 5m
+  # 失敗時以同一個 label 重試的次數；伺服器依 label 去重。
+  max_retries: 2
+  # 重試間隔。
+  retry_backoff: 1s
+  # TLS 設定。
+  # 其他欄位見 log.outputs.elasticsearch.tls。
+  tls: {enabled: false}
+  # 批次寫入：任一門檻達到即送出。
+  batch:
+    # 每批最多列數。
+    max_rows: 100000
+    # 每批最大位元組數。
+    max_bytes: 64MiB
+    # 最長等待時間，到了就送出未滿的批次。
+    flush_interval: 5s
+
+# ── trino：config.Trino ──
+# Trino（conn_trino）。
+trino:
+  # 完整連線字串，例如 https://app@trino:8443?catalog=hive；與 host 等欄位擇一。
+  dsn: ""
+  # 主機名稱或 IP。
+  host: trino
+  # 連接埠。
+  port: 8080
+  # 使用者（沒有 dsn 時必填）。
+  user: app
+  # 密碼；需要 tls.enabled。與 access_token 擇一。
+  password: ""
+  # JWT；需要 tls.enabled。與 password 擇一。
+  access_token: ""
+  # 預設 catalog。
+  catalog: hive
+  # 預設 schema。
+  schema: default
+  # trino-go-client 的 DSN 參數，例如 source、clientTags、session_properties、query_timeout。
+  params: {source: orders}
+  # 開啟連線時連通性檢查的逾時。
+  ping_timeout: 5s
+  # TLS 設定。
+  # 其他欄位見 log.outputs.elasticsearch.tls。
+  tls: {enabled: false}
+  # 連線池：最大開啟連線數，0 為不限。
+  max_open_conns: 20
+  # 連線池：最大閒置連線數，不可超過 max_open_conns。
+  max_idle_conns: 10
+  # 連線池：連線最長存活時間，0 為不限。
+  conn_max_lifetime: 1h
+  # 連線池：連線最長閒置時間，0 為不限。
+  conn_max_idle_time: 10m
+
+# ── elasticsearch：config.Elasticsearch ──
+# Elasticsearch（conn_es8、conn_es9）。
+elasticsearch:
+  # 節點 URL 清單；與 cloud_id 擇一。
+  addresses: ["https://es1:9200", "https://es2:9200"]
+  # Elastic Cloud 的 Cloud ID；與 addresses 擇一。
+  cloud_id: ""
+  # 使用者；username、api_key、service_token 三擇一。
+  username: elastic
+  # 密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。
+  password: change-me
+  # base64 編碼的 id:api_key。
+  api_key: ""
+  # service account token。
+  service_token: ""
+  # CA 憑證的 SHA-256 指紋（hex），Elasticsearch 8 第一次啟動時印出。
+  certificate_fingerprint: ""
+  # 每個請求等待回應標頭的逾時；0 為只受請求 context 限制。
+  response_header_timeout: 0s
+  # 開啟連線時連通性檢查的逾時。
+  ping_timeout: 5s
+  # TLS 設定。
+  # 其他欄位見 log.outputs.elasticsearch.tls。
+  tls: {enabled: false}
+  # 驅動程式的其他選項：鍵是驅動設定結構的欄位名稱轉成 snake_case，
+  # 對應 go-elasticsearch／opensearch-go 的 Config，例如 max_retries、compress_request_body。
+  options: {max_retries: 3}
+
+# ── opensearch：config.Elasticsearch ──
+# OpenSearch（conn_opensearch），欄位與 elasticsearch 相同。
+opensearch:
+  # 節點 URL 清單；與 cloud_id 擇一。
+  addresses: ["https://opensearch:9200"]
+  # Elastic Cloud 的 Cloud ID；與 addresses 擇一。
+  cloud_id: ""
+  # 使用者；username、api_key、service_token 三擇一。
+  username: admin
+  # 密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。
+  password: change-me
+  # base64 編碼的 id:api_key。
+  api_key: ""
+  # service account token。
+  service_token: ""
+  # CA 憑證的 SHA-256 指紋（hex），Elasticsearch 8 第一次啟動時印出。
+  certificate_fingerprint: ""
+  # 每個請求等待回應標頭的逾時；0 為只受請求 context 限制。
+  response_header_timeout: 0s
+  # 開啟連線時連通性檢查的逾時。
+  ping_timeout: 5s
+  # TLS 設定。
+  # 其他欄位見 log.outputs.elasticsearch.tls。
+  tls: {enabled: false}
+  # 驅動程式的其他選項：鍵是驅動設定結構的欄位名稱轉成 snake_case，
+  # 對應 go-elasticsearch／opensearch-go 的 Config，例如 max_retries、compress_request_body。
+  options: {max_retries: 3}
+
+# ── kafka：config.Kafka ──
+# Kafka（conn_kafka_franz、conn_kafka_sarama）。
+kafka:
+  # broker 的 host:port 清單。
+  brokers: ["kafka1:9092", "kafka2:9092"]
+  # client id。
+  client_id: orders
+  # broker 協定版本。sarama 需要它才能用新功能；franz-go 自行協商，只把它當上限。
+  version: 3.6.0
+  # 開啟連線時連通性檢查的逾時。
+  ping_timeout: 5s
+  # SASL 驗證；mechanism 留空為不驗證。
+  sasl:
+    # 驗證機制。
+    mechanism: SCRAM-SHA-512
+    # 使用者。
+    username: app
+    # 密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。
+    password: change-me
+  # TLS 設定。
+  # 其他欄位見 log.outputs.elasticsearch.tls。
+  tls: {enabled: false}
+  # 消費者設定。
+  consumer:
+    # consumer group。
+    group: orders
+    # 訂閱的 topic。
+    topics: [orders.created]
+    # 沒有已提交 offset 時從哪裡開始：earliest 或 latest。
+    initial_offset: latest
+  # 驅動程式的其他選項：鍵是驅動設定結構的欄位名稱轉成 snake_case，
+  # 只有 sarama 使用，對應 sarama.Config（例如 net.dial_timeout）；franz-go 必須留空。
+  options: {net: {dial_timeout: 10s}}
+
+# ── mqtt：config.MQTT ──
+# MQTT broker 連線（conn_mqtt，paho）。
+mqtt:
+  # broker URL：tcp://、ssl://、ws:// 或 wss://。
+  brokers: ["tcp://mqtt:1883"]
+  # client id。
+  client_id: orders
+  # 在 client_id 後加隨機字尾，避免同一服務的多個副本互踢。
+  client_id_random_suffix: true
+  # 使用者。
+  username: app
+  # 密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。
+  password: change-me
+  # TLS 設定。
+  # 其他欄位見 log.outputs.elasticsearch.tls。
+  tls: {enabled: false}
+  # 驅動程式的其他選項：鍵是驅動設定結構的欄位名稱轉成 snake_case，
+  # 對應 paho 的 ClientOptions，例如 auto_reconnect、keep_alive（秒）。
+  options: {auto_reconnect: true}
+
+# ── emqx：config.MQTTREST ──
+# 經 HTTP API 發佈 MQTT 訊息（conn_mqtt_rest）：EMQX 或自訂閘道。
+emqx:
+  # emqx 或 generic（自訂 HTTP 閘道）。
+  provider: emqx
+  # API 根網址；EMQX 會自動加上 /api/v5。
+  base_url: "http://emqx:18083"
+  # HTTP 驗證。
+  auth:
+    # none、basic、bearer 或 login（僅 emqx）；空值時有 username 為 basic，有 token 為 bearer。
+    type: basic
+    # basic 或 login 的使用者；EMQX 用 API key。
+    username: orders-key
+    # basic 或 login 的密碼；EMQX 用 API secret。
+    password: change-me
+    # bearer token。
+    token: ""
+  # 每個請求都帶上的 HTTP 標頭。
+  headers: {}
+  # 單一請求的逾時。
+  timeout: 10s
+  # 冪等請求（GET、DELETE）遇到網路錯誤、429、5xx 時的重試次數；發佈永不重試。
+  max_retries: 2
+  # 重試間隔。
+  retry_backoff: 200ms
+  # TLS 設定。
+  # 其他欄位見 log.outputs.elasticsearch.tls。
+  tls: {enabled: false}
+  # generic 的發佈端點與請求本文欄位；emqx 不需要。
+  publish:
+    # HTTP 方法。
+    method: POST
+    # 發佈路徑，generic 必填，例如 /publish。
+    path: ""
+    # 接受 JSON 陣列的批次路徑；空值時批次逐筆送出。
+    batch_path: ""
+    # 請求本文中 topic 的欄位名稱。
+    topic_field: topic
+    # 請求本文中 payload 的欄位名稱。
+    payload_field: payload
+    # 請求本文中 QoS 的欄位名稱。
+    qos_field: qos
+    # 請求本文中 retain 的欄位名稱。
+    retain_field: retain
+    # payload 編碼：plain 或 base64。
+    payload_encoding: plain
+    # 設定時，本文多一個欄位帶 payload_encoding 的值。
+    encoding_field: ""
+    # 每個請求本文都加上的固定欄位。
+    extra: {}
+
+# ════════════════════════════════════════════════════════════
+# 自訂設定：以下是應用程式自己的區段，不在 schema.json 內。
+# ════════════════════════════════════════════════════════════
+
+# ── server：Server ──
+# 自訂一：應用程式自己的欄位，用 default 給預設值、validate 標籤檢查。
+# 時間與大小的規則直接寫單位，例如 gte=1s、lte=32MiB。
+#
+#   // Server holds plain fields of the application, checked by validate tags.
+#   // Rules on durations and byte sizes take values in their own units.
+#   type Server struct {
+#       Listen       string          `config:"listen"        default:":8080"   validate:"hostname_port"`
+#       PublicURL    string          `config:"public_url"    validate:"omitempty,url"`
+#       Mode         string          `config:"mode"          default:"release" validate:"oneof=debug release"`
+#       ReadTimeout  time.Duration   `config:"read_timeout"  default:"5s"      validate:"gte=1s,lte=1m"`
+#       MaxBodySize  config.ByteSize `config:"max_body_size" default:"4MiB"    validate:"lte=32MiB"`
+#       TrustedCIDRs []string        `config:"trusted_cidrs" validate:"dive,cidr"`
+#   }
+server:
+  # 監聽位址，host:port；host 留空表示所有介面。
+  listen: ":8080"
+  # 對外網址；可留空，填了就必須是 URL。
+  public_url: https://orders.example.com
+  # debug 或 release。
+  mode: release
+  # 讀取請求的逾時，限制在 1s 到 1m。
+  read_timeout: 5s
+  # 請求本文上限，最多 32MiB。
+  max_body_size: 8MiB
+  # 信任的代理網段；dive 讓 cidr 規則套用到每一項。
+  trusted_cidrs: [10.0.0.0/8, 192.168.0.0/16]
+
+# ── tenants：config.Named[Tenant] ──
+# 自訂二：自己的型別放進 config.Named，這裡用清單形式（每項帶 name）。
+# 跨區段的檢查寫在根結構的 Validate 方法：每個租戶的 database 必須是 mysql 的實例。
+#
+#   // Tenant is an application type held in a Named collection. Name is filled
+#   // with the instance name.
+#   type Tenant struct {
+#       Name     string        `config:"name"`
+#       Database string        `config:"database" validate:"required"`
+#       Quota    int           `config:"quota"    default:"100" validate:"min=1"`
+#       Features []string      `config:"features"`
+#       APIKey   config.Secret `config:"api_key"`
+#   }
+#
+#   // Validate checks a reference between sections, which no single section's
+#   // rules can see.
+#   func (c AppConfig) Validate() error {
+#       for name, t := range c.Tenants.All() {
+#           if !c.MySQL.Has(t.Database) {
+#               return fmt.Errorf("tenants.%s.database: no mysql instance %q", name, t.Database)
+#           }
+#       }
+#       return nil
+#   }
+tenants:
+  - name: acme
+    # 租戶資料所在的 mysql 實例名稱（必填）。
+    database: main
+    # 每日配額，至少 1。
+    quota: 1000
+    # 啟用的功能。
+    features: [export, sso]
+    # 租戶的 API key（config.Secret）。
+    api_key: change-me
+  # 沒寫的欄位取 default 標籤的值，例如 quota 是 100。
+  - name: globex
+    # 租戶資料所在的 mysql 實例名稱（必填）。
+    database: main
+
+# ── rate_limits：map[string]RateLimit ──
+# 自訂三：型別實作 UnmarshalConfig，自己決定接受哪些寫法。
+#
+#   // RateLimit decodes itself, so a file may write "100/s", "20/30s" or
+#   // {requests: 100, per: 1s}.
+#   type RateLimit struct {
+#       Requests int
+#       Per      time.Duration
+#   }
+#
+#   func (r *RateLimit) UnmarshalConfig(raw any) error {
+#       var n, per string
+#       switch v := raw.(type) {
+#       case string:
+#           var ok bool
+#           if n, per, ok = strings.Cut(v, "/"); !ok {
+#               return fmt.Errorf("rate %q: want requests/period, e.g. 100/s", v)
+#           }
+#           if per != "" && (per[0] < '0' || per[0] > '9') {
+#               per = "1" + per
+#           }
+#       case map[string]any:
+#           n, per = fmt.Sprint(v["requests"]), fmt.Sprint(v["per"])
+#       default:
+#           return fmt.Errorf("rate: want a string or a mapping, got %T", raw)
+#       }
+#       requests, err := strconv.Atoi(strings.TrimSpace(n))
+#       if err != nil || requests < 1 {
+#           return fmt.Errorf("rate: requests must be a positive integer, got %q", n)
+#       }
+#       d, err := time.ParseDuration(strings.TrimSpace(per))
+#       if err != nil || d <= 0 {
+#           return fmt.Errorf("rate: invalid period %q", per)
+#       }
+#       *r = RateLimit{Requests: requests, Per: d}
+#       return nil
+#   }
+rate_limits:
+  # 字串形式：每秒 100 次。
+  api: 100/s
+  # 每 30 秒 20 次。
+  search: 20/30s
+  # 對映形式。
+  login: {requests: 5, per: 1m}
