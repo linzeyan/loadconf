@@ -31,7 +31,12 @@
 //   - env:"NAME[,ALT]"   explicit environment variable that overrides the field
 //     after every source has been merged.
 //   - env-prefix:"P_"    prefix prepended to the env tags of nested fields.
-//   - validate:"rules"   github.com/go-playground/validator/v10 rules.
+//   - validate:"rules"   comma-separated rules checked after decoding:
+//     required, omitempty, min, max, len, gt, gte, lt, lte (lengths for
+//     strings, slices and maps; values for numbers, durations and byte sizes,
+//     e.g. min=1s), oneof=a b c, url, hostname_port, ip, cidr, and dive to
+//     apply the rules after it to each element. An unknown rule fails
+//     loading; rules that need code go in a Validate() error method.
 //
 // Types may also implement [Defaulter], [Validator] or [Unmarshaler] to hook
 // into the corresponding stage.

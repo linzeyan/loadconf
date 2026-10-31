@@ -26,6 +26,7 @@ type fieldInfo struct {
 	envPrefix string   // prefix for env tags of nested fields
 	def       string
 	hasDef    bool
+	rules     string // the validate tag
 }
 
 type structInfo struct {
@@ -109,6 +110,7 @@ func collectFields(t reflect.Type, tagName string, index []int, envPrefix string
 			name:      sf.Name,
 			typ:       sf.Type,
 			envPrefix: envPrefix + sf.Tag.Get("env-prefix"),
+			rules:     sf.Tag.Get("validate"),
 		}
 		fi.def, fi.hasDef = sf.Tag.Lookup("default")
 		for name := range strings.SplitSeq(sf.Tag.Get("env"), ",") {
