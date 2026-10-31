@@ -40,6 +40,12 @@ github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
 github.com/leodido/go-urn v1.5.0 h1:pLqT2kq1zpHW/1D18QMjMpdtX7cekxqtJJjg5ANyWw0=
 github.com/leodido/go-urn v1.5.0/go.mod h1:9BORnCDhdPBJNDEX+w1bJisa8yOKYi116VeO96s4ifE=
+github.com/linzeyan/loadconf/config v0.1.0 h1:6fDwZIQ9mrbyZGMlT+VeamKPKnMEJSYnbr0BuODGI8w=
+github.com/linzeyan/loadconf/config v0.1.0/go.mod h1:SJUFMEEkAEOKXXFECum+qt9geAvCGSVE4lKksCc1z+Q=
+github.com/linzeyan/loadconf/connector/conn_gorm_log v0.1.0 h1:Ji5En0rJ52CrUB0ZnjR/F1xppeC6hKmwlY8uM9+N22w=
+github.com/linzeyan/loadconf/connector/conn_gorm_log v0.1.0/go.mod h1:WPNPhv3drFxHHkvjTURbaPz2DKBkhPZmW3+JnAtq9pU=
+github.com/linzeyan/loadconf/connector/conn_mssql v0.1.0 h1:glBRNtk3NfGDD7gcn98oiXsfksz6sdk3VfYAD5S+D9k=
+github.com/linzeyan/loadconf/connector/conn_mssql v0.1.0/go.mod h1:bOWi/6dpjh3Y6zu8mMLNoq09xdWoENtDy6WWCZmExzk=
 github.com/mattn/go-sqlite3 v1.14.22 h1:2gZY6PC6kBnID23Tichd1K+Z0oS6nE/XwU+Vz/5o4kU=
 github.com/mattn/go-sqlite3 v1.14.22/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
 github.com/microsoft/go-mssqldb v1.11.2 h1:FCgeBIK8um2+X4tbun6Q71N1KsfyCDPKY41e1yGVjSE=
