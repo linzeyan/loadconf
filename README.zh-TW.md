@@ -53,6 +53,8 @@ import 路徑就是 module 路徑，package 名稱是路徑的最後一段。
 | `github.com/linzeyan/loadconf/logger/logger_zap`、`…/logger_zerolog`、`…/sink_otlp` | 用同一份設定建立 zap 或 zerolog logger；OTLP 輸出 |
 | `github.com/linzeyan/loadconf/connector/conn_<driver>` | 每個 driver 一個 module，見 [Connector 一覽](#connector-一覽) |
 
+[config/example.yaml](config/example.yaml) 列出所有內建設定與預設值，附三個自訂區段，註解是中文。[config/schema.json](config/schema.json) 描述內建設定，供編輯器補全與檢查；VS Code 的 YAML 擴充套件在設定檔第一行加上 `# yaml-language-server: $schema=https://raw.githubusercontent.com/linzeyan/loadconf/main/config/schema.json` 即可。兩個檔都由 `make generate` 從 Go 型別產生。
+
 ## 範例
 
 每個範例先列**以前**：熱門開源專案不用 loadconf 時怎麼寫同一件事，設定檔和程式碼都節錄自連結的檔案，並用表格列出差異。接著是**用 loadconf**，同樣附上設定檔和程式碼：在前面某個範例上多加一件事，並寫明加了什麼。

@@ -53,6 +53,8 @@ The import path is the module path; the package name is its last element.
 | `github.com/linzeyan/loadconf/logger/logger_zap`, `…/logger_zerolog`, `…/sink_otlp` | The same configuration as a zap or zerolog logger; the OTLP output |
 | `github.com/linzeyan/loadconf/connector/conn_<driver>` | One module per driver; see [Connectors](#connectors) |
 
+[config/example.yaml](config/example.yaml) lists every built-in setting with its default, plus three custom sections, commented in Chinese. [config/schema.json](config/schema.json) describes the built-in settings for editor completion and checks; with the YAML extension of VS Code, add `# yaml-language-server: $schema=https://raw.githubusercontent.com/linzeyan/loadconf/main/config/schema.json` to the top of a config file. Both are generated from the Go types by `make generate`.
+
 ## Examples
 
 Each example opens with **Before**: the same task as a popular open-source project writes it without loadconf, its config file and its code condensed from the linked files, and a table of what differs. **With loadconf** follows, with the config file and the code; it adds one thing to an earlier example and names the change.

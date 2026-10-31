@@ -8,7 +8,7 @@
 export GOWORK := off
 MODULES := $(patsubst %/go.mod,%,$(shell git ls-files --cached --others --exclude-standard '*/go.mod'))
 
-.PHONY: lint test release
+.PHONY: lint test generate release
 
 # A go.sum that lists a module of this repository means a require of it has
 # no replace, so that module was built from the proxy, not the working tree.
@@ -19,6 +19,9 @@ lint: ## Vet every module and check that requires between them are replaced
 
 test: ## Run the tests of every module with the race detector
 	@./scripts/each-module.sh go test -race ./...
+
+generate: ## Regenerate config/example.yaml and config/schema.json from the Go types
+	cd config && go test -run '^TestExampleFiles$$' . -update
 
 release:
 	./scripts/release.sh $(VERSION)

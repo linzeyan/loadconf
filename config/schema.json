@@ -1,0 +1,2188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/linzeyan/loadconf/main/config/schema.json",
+  "title": "loadconf",
+  "description": "loadconf 內建設定（由 config/example_gen_test.go 產生）。區段名稱是慣例，實際以應用程式的 struct 標籤為準；未列出的頂層鍵不檢查。",
+  "type": "object",
+  "properties": {
+    "log": {
+      "description": "日誌：logger、logger/logger_zap、logger/logger_zerolog 讀這個區段。",
+      "$ref": "#/$defs/Log",
+      "unevaluatedProperties": false
+    },
+    "mysql": {
+      "description": "MySQL（conn_sql、conn_gorm）。config.Named 可放多個實例，程式以 cfg.MySQL.Get(\"main\") 取用。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MySQL",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/MySQL",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/MySQL",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "postgres": {
+      "description": "PostgreSQL（conn_sql、conn_gorm）。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Postgres",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/Postgres",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Postgres",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "sqlserver": {
+      "description": "SQL Server（conn_mssql、conn_gorm_mssql）。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SQLServer",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/SQLServer",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SQLServer",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "oracle": {
+      "description": "Oracle（conn_oracle，go-ora）。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Oracle",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/Oracle",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Oracle",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "sqlite": {
+      "description": "SQLite（conn_sqlite、conn_gorm_sqlite）。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SQLite",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/SQLite",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SQLite",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "redis": {
+      "description": "Redis（conn_redis）：單機、cluster 或 sentinel。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Redis",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/Redis",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Redis",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "mongo": {
+      "description": "MongoDB（conn_mongo）。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Mongo",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/Mongo",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Mongo",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "cassandra": {
+      "description": "Cassandra（conn_cassandra）。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Cassandra",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/Cassandra",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Cassandra",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "scylla": {
+      "description": "ScyllaDB（conn_scylla），欄位與 cassandra 相同。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Cassandra",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/Cassandra",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Cassandra",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "clickhouse": {
+      "description": "ClickHouse（conn_clickhouse）。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ClickHouse",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/ClickHouse",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ClickHouse",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "doris": {
+      "description": "Doris／StarRocks Stream Load（conn_streamload）。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StreamLoad",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/StreamLoad",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/StreamLoad",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "trino": {
+      "description": "Trino（conn_trino）。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Trino",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/Trino",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Trino",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "elasticsearch": {
+      "description": "Elasticsearch（conn_es8、conn_es9）。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Elasticsearch",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/Elasticsearch",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Elasticsearch",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "opensearch": {
+      "description": "OpenSearch（conn_opensearch），欄位與 elasticsearch 相同。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Elasticsearch",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/Elasticsearch",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Elasticsearch",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "kafka": {
+      "description": "Kafka（conn_kafka_franz、conn_kafka_sarama）。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Kafka",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/Kafka",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Kafka",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "mqtt": {
+      "description": "MQTT broker 連線（conn_mqtt，paho）。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MQTT",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/MQTT",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/MQTT",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "emqx": {
+      "description": "經 HTTP API 發佈 MQTT 訊息（conn_mqtt_rest）：EMQX 或自訂閘道。",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MQTTREST",
+          "unevaluatedProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/MQTTREST",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/MQTTREST",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "ByteSize": {
+      "description": "位元組數，或含單位的字串：B、KB/MB/GB/TB（1000 進位）、KiB/MiB/GiB/TiB（1024 進位），例如 64MiB。",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^\\s*(\\d+\\.?\\d*|\\.\\d+)\\s*([bB]|[kKmMgGtT]([iI]?[bB])?)?\\s*$"
+        }
+      ]
+    },
+    "Cassandra": {
+      "type": "object",
+      "properties": {
+        "hosts": {
+          "description": "contact points，host 或 host:port。",
+          "type": [
+            "array",
+            "string"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "port": {
+          "description": "hosts 沒寫連接埠時使用的連接埠。",
+          "type": "integer",
+          "default": 9042
+        },
+        "keyspace": {
+          "description": "keyspace。",
+          "type": "string"
+        },
+        "username": {
+          "description": "使用者。",
+          "type": "string"
+        },
+        "password": {
+          "description": "密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。",
+          "type": "string"
+        },
+        "local_dc": {
+          "description": "優先使用的資料中心，啟用 DC-aware、token-aware 路由；多資料中心叢集建議設定。",
+          "type": "string"
+        },
+        "compression": {
+          "description": "壓縮：snappy、lz4，空值不壓縮。",
+          "type": "string",
+          "enum": [
+            "snappy",
+            "lz4"
+          ]
+        },
+        "retries": {
+          "description": "簡單重試策略的重試次數。",
+          "type": "integer"
+        },
+        "tls": {
+          "description": "TLS 設定。",
+          "$ref": "#/$defs/TLS",
+          "unevaluatedProperties": false
+        },
+        "options": {
+          "description": "驅動程式的其他選項：鍵是驅動設定結構的欄位名稱轉成 snake_case，\n對應 gocql 的 ClusterConfig，例如 num_conns、timeout。",
+          "type": "object"
+        }
+      }
+    },
+    "ClickHouse": {
+      "type": "object",
+      "properties": {
+        "dsn": {
+          "description": "完整連線字串，例如 clickhouse://default:pw@clickhouse:9000/default；與 addrs 擇一。",
+          "type": "string"
+        },
+        "addrs": {
+          "description": "host:port 清單：native 用 9000（TLS 9440），http 用 8123（TLS 8443）。",
+          "type": [
+            "array",
+            "string"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "protocol": {
+          "description": "native 或 http。",
+          "type": "string",
+          "enum": [
+            "native",
+            "http"
+          ],
+          "default": "native"
+        },
+        "database": {
+          "description": "預設資料庫。",
+          "type": "string"
+        },
+        "username": {
+          "description": "使用者。",
+          "type": "string"
+        },
+        "password": {
+          "description": "密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。",
+          "type": "string"
+        },
+        "compression": {
+          "description": "壓縮方式；gzip、deflate、br 只限 http。等級用 options.compression.level 設定。",
+          "type": "string",
+          "enum": [
+            "none",
+            "lz4",
+            "lz4hc",
+            "zstd",
+            "gzip",
+            "deflate",
+            "br"
+          ]
+        },
+        "ping_timeout": {
+          "description": "開啟連線時連通性檢查的逾時。",
+          "$ref": "#/$defs/Duration",
+          "default": "3s"
+        },
+        "tls": {
+          "description": "TLS 設定。",
+          "$ref": "#/$defs/TLS",
+          "unevaluatedProperties": false
+        },
+        "max_open_conns": {
+          "description": "連線池：最大開啟連線數，0 為不限。",
+          "type": "integer"
+        },
+        "max_idle_conns": {
+          "description": "連線池：最大閒置連線數，不可超過 max_open_conns。",
+          "type": "integer"
+        },
+        "conn_max_lifetime": {
+          "description": "連線池：連線最長存活時間，0 為不限。",
+          "$ref": "#/$defs/Duration"
+        },
+        "conn_max_idle_time": {
+          "description": "連線池：連線最長閒置時間，0 為不限。",
+          "$ref": "#/$defs/Duration"
+        },
+        "options": {
+          "description": "驅動程式的其他選項：鍵是驅動設定結構的欄位名稱轉成 snake_case，\n對應 clickhouse-go 的 Options，例如 dial_timeout、settings。",
+          "type": "object"
+        }
+      }
+    },
+    "Duration": {
+      "description": "時間長度，例如 500ms、5s、1m30s、1h；數字只接受 0（其他數字的單位不明）。",
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^(|0|-?((\\d+(\\.\\d*)?|\\.\\d+)(ns|us|µs|μs|ms|s|m|h))+)$"
+        },
+        {
+          "const": 0
+        }
+      ]
+    },
+    "Elasticsearch": {
+      "type": "object",
+      "properties": {
+        "addresses": {
+          "description": "節點 URL 清單；與 cloud_id 擇一。",
+          "type": [
+            "array",
+            "string"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "cloud_id": {
+          "description": "Elastic Cloud 的 Cloud ID；與 addresses 擇一。",
+          "type": "string"
+        },
+        "username": {
+          "description": "使用者；username、api_key、service_token 三擇一。",
+          "type": "string"
+        },
+        "password": {
+          "description": "密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。",
+          "type": "string"
+        },
+        "api_key": {
+          "description": "base64 編碼的 id:api_key。",
+          "type": "string"
+        },
+        "service_token": {
+          "description": "service account token。",
+          "type": "string"
+        },
+        "certificate_fingerprint": {
+          "description": "CA 憑證的 SHA-256 指紋（hex），Elasticsearch 8 第一次啟動時印出。",
+          "type": "string"
+        },
+        "response_header_timeout": {
+          "description": "每個請求等待回應標頭的逾時；0 為只受請求 context 限制。",
+          "$ref": "#/$defs/Duration"
+        },
+        "ping_timeout": {
+          "description": "開啟連線時連通性檢查的逾時。",
+          "$ref": "#/$defs/Duration",
+          "default": "5s"
+        },
+        "tls": {
+          "description": "TLS 設定。",
+          "$ref": "#/$defs/TLS",
+          "unevaluatedProperties": false
+        },
+        "options": {
+          "description": "驅動程式的其他選項：鍵是驅動設定結構的欄位名稱轉成 snake_case，\n對應 go-elasticsearch／opensearch-go 的 Config，例如 max_retries、compress_request_body。",
+          "type": "object"
+        }
+      }
+    },
+    "HTTPAuth": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "none、basic、bearer 或 login（僅 emqx）；空值時有 username 為 basic，有 token 為 bearer。",
+          "type": "string",
+          "enum": [
+            "none",
+            "basic",
+            "bearer",
+            "login"
+          ]
+        },
+        "username": {
+          "description": "basic 或 login 的使用者；EMQX 用 API key。",
+          "type": "string"
+        },
+        "password": {
+          "description": "basic 或 login 的密碼；EMQX 用 API secret。",
+          "type": "string"
+        },
+        "token": {
+          "description": "bearer token。",
+          "type": "string"
+        }
+      }
+    },
+    "Kafka": {
+      "type": "object",
+      "properties": {
+        "brokers": {
+          "description": "broker 的 host:port 清單。",
+          "type": [
+            "array",
+            "string"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "client_id": {
+          "description": "client id。",
+          "type": "string"
+        },
+        "version": {
+          "description": "broker 協定版本。sarama 需要它才能用新功能；franz-go 自行協商，只把它當上限。",
+          "type": "string"
+        },
+        "ping_timeout": {
+          "description": "開啟連線時連通性檢查的逾時。",
+          "$ref": "#/$defs/Duration",
+          "default": "5s"
+        },
+        "sasl": {
+          "description": "SASL 驗證；mechanism 留空為不驗證。",
+          "$ref": "#/$defs/KafkaSASL",
+          "unevaluatedProperties": false
+        },
+        "tls": {
+          "description": "TLS 設定。",
+          "$ref": "#/$defs/TLS",
+          "unevaluatedProperties": false
+        },
+        "consumer": {
+          "description": "消費者設定。",
+          "$ref": "#/$defs/KafkaConsumer",
+          "unevaluatedProperties": false
+        },
+        "options": {
+          "description": "驅動程式的其他選項：鍵是驅動設定結構的欄位名稱轉成 snake_case，\n只有 sarama 使用，對應 sarama.Config（例如 net.dial_timeout）；franz-go 必須留空。",
+          "type": "object"
+        }
+      }
+    },
+    "KafkaConsumer": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "description": "consumer group。",
+          "type": "string"
+        },
+        "topics": {
+          "description": "訂閱的 topic。",
+          "type": [
+            "array",
+            "string"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "initial_offset": {
+          "description": "沒有已提交 offset 時從哪裡開始：earliest 或 latest。",
+          "type": "string",
+          "enum": [
+            "earliest",
+            "latest"
+          ],
+          "default": "latest"
+        }
+      }
+    },
+    "KafkaSASL": {
+      "type": "object",
+      "properties": {
+        "mechanism": {
+          "description": "驗證機制。",
+          "type": "string",
+          "enum": [
+            "PLAIN",
+            "SCRAM-SHA-256",
+            "SCRAM-SHA-512"
+          ]
+        },
+        "username": {
+          "description": "使用者。",
+          "type": "string"
+        },
+        "password": {
+          "description": "密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。",
+          "type": "string"
+        }
+      }
+    },
+    "Log": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "description": "最低等級，可在熱重載時變更。",
+          "type": "string",
+          "enum": [
+            "trace",
+            "debug",
+            "info",
+            "warn",
+            "error",
+            "fatal"
+          ],
+          "default": "info"
+        },
+        "format": {
+          "description": "stdout、stderr、file 輸出的預設格式：json 或 text。",
+          "type": "string",
+          "enum": [
+            "json",
+            "text"
+          ],
+          "default": "json"
+        },
+        "add_source": {
+          "description": "加上呼叫處的檔案與行號。",
+          "type": "boolean"
+        },
+        "stack_level": {
+          "description": "此等級以上附堆疊；none 關閉。",
+          "type": "string",
+          "enum": [
+            "trace",
+            "debug",
+            "info",
+            "warn",
+            "error",
+            "fatal",
+            "none"
+          ],
+          "default": "error"
+        },
+        "time_format": {
+          "description": "時間格式：rfc3339、rfc3339milli（預設）、rfc3339nano、unix、unixmilli、unixnano，或 Go layout。",
+          "type": "string"
+        },
+        "utc": {
+          "description": "時間用 UTC 而不是本地時區。",
+          "type": "boolean"
+        },
+        "pretty_json": {
+          "description": "stdout、stderr、file 的 JSON 縮排輸出，供本機開發。",
+          "type": "boolean"
+        },
+        "service": {
+          "description": "加上 service 欄位，也是 syslog、GELF、OTLP 的程序名稱；空值為執行檔名稱。",
+          "type": "string"
+        },
+        "hostname": {
+          "description": "加上 host 欄位。",
+          "type": "boolean"
+        },
+        "fields": {
+          "description": "每筆紀錄都加上的固定欄位，例如 env、version。",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "outputs": {
+          "description": "輸出目的地，以名稱為鍵；沒有設定時輸出到 stdout。\ntype 預設等於名稱，所以名為 file 的輸出可以省略 type。",
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/LogOutput",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/LogOutput",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "unevaluatedProperties": false
+              }
+            }
+          ]
+        }
+      }
+    },
+    "LogOutput": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "輸出名稱，即 outputs 的鍵。",
+          "type": "string"
+        },
+        "type": {
+          "description": "stdout、stderr、file、syslog、gelf、elasticsearch、otlp，或以 logger.WithSink 註冊的自訂類型；空值等於名稱。",
+          "type": "string"
+        },
+        "level": {
+          "description": "此輸出的最低等級；與 log.level 取較高者。",
+          "type": "string",
+          "enum": [
+            "trace",
+            "debug",
+            "info",
+            "warn",
+            "error",
+            "fatal"
+          ]
+        },
+        "format": {
+          "description": "覆蓋 log.format（stdout、stderr、file）；其他輸出一律 JSON。",
+          "type": "string",
+          "enum": [
+            "json",
+            "text"
+          ]
+        },
+        "disabled": {
+          "description": "關閉此輸出，例如只在某個環境關掉。",
+          "type": "boolean"
+        },
+        "path": {
+          "description": "日誌檔路徑（file 必填）。",
+          "type": "string"
+        },
+        "max_size": {
+          "description": "超過此大小就輪替（file）。",
+          "$ref": "#/$defs/ByteSize",
+          "default": "100MiB"
+        },
+        "max_backups": {
+          "description": "保留的輪替檔數量，0 為全部保留（file）。",
+          "type": "integer"
+        },
+        "max_age": {
+          "description": "輪替檔保留時間，0 為不限（file）。",
+          "$ref": "#/$defs/Duration"
+        },
+        "local_time": {
+          "description": "輪替檔名用本地時間而不是 UTC（file）。",
+          "type": "boolean"
+        },
+        "compress": {
+          "description": "gzip 壓縮：輪替檔（file）、UDP 封包（gelf）、請求本文（elasticsearch、otlp）。",
+          "type": "boolean"
+        },
+        "network": {
+          "description": "syslog：udp、tcp、unix，空值為本機 syslog daemon；gelf：udp（預設）或 tcp。",
+          "type": "string"
+        },
+        "addr": {
+          "description": "host:port（syslog、gelf）或 socket 路徑（unix syslog）；設了 network 就必填。",
+          "type": "string"
+        },
+        "facility": {
+          "description": "syslog facility，例如 local0（預設）、user、daemon。",
+          "type": "string"
+        },
+        "tag": {
+          "description": "syslog 的 app name；空值為 log.service。",
+          "type": "string"
+        },
+        "syslog_format": {
+          "description": "rfc5424（預設）或 rfc3164。",
+          "type": "string",
+          "enum": [
+            "rfc5424",
+            "rfc3164"
+          ]
+        },
+        "chunk_size": {
+          "description": "超過此大小的 UDP 封包會分塊（gelf，預設 1420）。",
+          "type": "integer"
+        },
+        "addresses": {
+          "description": "節點 URL（elasticsearch 必填）。",
+          "type": [
+            "array",
+            "string"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "username": {
+          "description": "使用者；與 api_key 擇一（elasticsearch）。",
+          "type": "string"
+        },
+        "password": {
+          "description": "密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。",
+          "type": "string"
+        },
+        "api_key": {
+          "description": "API key；與 username 擇一（elasticsearch）。",
+          "type": "string"
+        },
+        "index": {
+          "description": "目標 index 或 data stream；{service} 換成 log.service，{date:LAYOUT} 換成紀錄日期（elasticsearch）。",
+          "type": "string"
+        },
+        "endpoint": {
+          "description": "collector 的 host:port 或 URL；空值讀 OTEL_EXPORTER_OTLP_* 環境變數（otlp）。",
+          "type": "string"
+        },
+        "protocol": {
+          "description": "grpc（預設）或 http（otlp）。",
+          "type": "string",
+          "enum": [
+            "grpc",
+            "http"
+          ]
+        },
+        "insecure": {
+          "description": "不用 TLS 連 collector（otlp）。",
+          "type": "boolean"
+        },
+        "headers": {
+          "description": "每個請求帶上的標頭（elasticsearch、otlp）。",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "timeout": {
+          "description": "單次寫入或匯出的逾時（syslog、gelf、elasticsearch、otlp）。",
+          "$ref": "#/$defs/Duration",
+          "default": "5s"
+        },
+        "batch_size": {
+          "description": "非同步送出的批次大小（elasticsearch、otlp）。",
+          "type": "integer",
+          "default": 500
+        },
+        "flush_interval": {
+          "description": "未滿的批次最長等待時間（elasticsearch、otlp）。",
+          "$ref": "#/$defs/Duration",
+          "default": "1s"
+        },
+        "queue_size": {
+          "description": "佇列長度；佇列滿時丟棄紀錄（elasticsearch、otlp）。",
+          "type": "integer",
+          "default": 10000
+        },
+        "tls": {
+          "description": "TLS：tcp 上的 syslog、gelf，以及 elasticsearch、otlp。",
+          "$ref": "#/$defs/TLS",
+          "unevaluatedProperties": false
+        },
+        "options": {
+          "description": "自訂類型輸出的設定。",
+          "type": "object"
+        }
+      }
+    },
+    "MQTT": {
+      "type": "object",
+      "properties": {
+        "brokers": {
+          "description": "broker URL：tcp://、ssl://、ws:// 或 wss://。",
+          "type": [
+            "array",
+            "string"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "client_id": {
+          "description": "client id。",
+          "type": "string"
+        },
+        "client_id_random_suffix": {
+          "description": "在 client_id 後加隨機字尾，避免同一服務的多個副本互踢。",
+          "type": "boolean"
+        },
+        "username": {
+          "description": "使用者。",
+          "type": "string"
+        },
+        "password": {
+          "description": "密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。",
+          "type": "string"
+        },
+        "tls": {
+          "description": "TLS 設定。",
+          "$ref": "#/$defs/TLS",
+          "unevaluatedProperties": false
+        },
+        "options": {
+          "description": "驅動程式的其他選項：鍵是驅動設定結構的欄位名稱轉成 snake_case，\n對應 paho 的 ClientOptions，例如 auto_reconnect、keep_alive（秒）。",
+          "type": "object"
+        }
+      }
+    },
+    "MQTTREST": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "emqx 或 generic（自訂 HTTP 閘道）。",
+          "type": "string",
+          "enum": [
+            "emqx",
+            "generic"
+          ],
+          "default": "emqx"
+        },
+        "base_url": {
+          "description": "API 根網址；EMQX 會自動加上 /api/v5。",
+          "type": "string"
+        },
+        "auth": {
+          "description": "HTTP 驗證。",
+          "$ref": "#/$defs/HTTPAuth",
+          "unevaluatedProperties": false
+        },
+        "headers": {
+          "description": "每個請求都帶上的 HTTP 標頭。",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "timeout": {
+          "description": "單一請求的逾時。",
+          "$ref": "#/$defs/Duration",
+          "default": "10s"
+        },
+        "max_retries": {
+          "description": "冪等請求（GET、DELETE）遇到網路錯誤、429、5xx 時的重試次數；發佈永不重試。",
+          "type": "integer",
+          "default": 2
+        },
+        "retry_backoff": {
+          "description": "重試間隔。",
+          "$ref": "#/$defs/Duration",
+          "default": "200ms"
+        },
+        "tls": {
+          "description": "TLS 設定。",
+          "$ref": "#/$defs/TLS",
+          "unevaluatedProperties": false
+        },
+        "publish": {
+          "description": "generic 的發佈端點與請求本文欄位；emqx 不需要。",
+          "$ref": "#/$defs/MQTTRESTPublish",
+          "unevaluatedProperties": false
+        }
+      }
+    },
+    "MQTTRESTPublish": {
+      "type": "object",
+      "properties": {
+        "method": {
+          "description": "HTTP 方法。",
+          "type": "string",
+          "default": "POST"
+        },
+        "path": {
+          "description": "發佈路徑，generic 必填，例如 /publish。",
+          "type": "string"
+        },
+        "batch_path": {
+          "description": "接受 JSON 陣列的批次路徑；空值時批次逐筆送出。",
+          "type": "string"
+        },
+        "topic_field": {
+          "description": "請求本文中 topic 的欄位名稱。",
+          "type": "string",
+          "default": "topic"
+        },
+        "payload_field": {
+          "description": "請求本文中 payload 的欄位名稱。",
+          "type": "string",
+          "default": "payload"
+        },
+        "qos_field": {
+          "description": "請求本文中 QoS 的欄位名稱。",
+          "type": "string",
+          "default": "qos"
+        },
+        "retain_field": {
+          "description": "請求本文中 retain 的欄位名稱。",
+          "type": "string",
+          "default": "retain"
+        },
+        "payload_encoding": {
+          "description": "payload 編碼：plain 或 base64。",
+          "type": "string",
+          "enum": [
+            "plain",
+            "base64"
+          ],
+          "default": "plain"
+        },
+        "encoding_field": {
+          "description": "設定時，本文多一個欄位帶 payload_encoding 的值。",
+          "type": "string"
+        },
+        "extra": {
+          "description": "每個請求本文都加上的固定欄位。",
+          "type": "object"
+        }
+      }
+    },
+    "Mongo": {
+      "type": "object",
+      "properties": {
+        "uri": {
+          "description": "mongodb:// 或 mongodb+srv:// 連線字串；與 hosts 擇一。",
+          "type": "string"
+        },
+        "hosts": {
+          "description": "host:port 清單。",
+          "type": [
+            "array",
+            "string"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "database": {
+          "description": "預設資料庫。",
+          "type": "string"
+        },
+        "username": {
+          "description": "使用者。",
+          "type": "string"
+        },
+        "password": {
+          "description": "密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。",
+          "type": "string"
+        },
+        "auth_source": {
+          "description": "驗證用的資料庫，常見為 admin。",
+          "type": "string"
+        },
+        "auth_mechanism": {
+          "description": "驗證機制，例如 SCRAM-SHA-256；空值由驅動協商。",
+          "type": "string"
+        },
+        "params": {
+          "description": "連線字串選項，例如 replicaSet、appName、readPreference、maxPoolSize；覆蓋 uri 中的同名選項。",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "ping_timeout": {
+          "description": "開啟連線時連通性檢查的逾時。",
+          "$ref": "#/$defs/Duration",
+          "default": "3s"
+        },
+        "tls": {
+          "description": "TLS 設定。",
+          "$ref": "#/$defs/TLS",
+          "unevaluatedProperties": false
+        }
+      }
+    },
+    "MySQL": {
+      "type": "object",
+      "properties": {
+        "dsn": {
+          "description": "完整連線字串，與 host 等欄位擇一；兩者都填時，欄位覆蓋連線字串中的對應部分。\n例如 app:pw@tcp(mysql:3306)/orders?parseTime=true",
+          "type": "string"
+        },
+        "host": {
+          "description": "主機名稱或 IP。",
+          "type": "string"
+        },
+        "port": {
+          "description": "連接埠。",
+          "type": "integer",
+          "default": 3306
+        },
+        "user": {
+          "description": "使用者。",
+          "type": "string"
+        },
+        "password": {
+          "description": "密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。",
+          "type": "string"
+        },
+        "database": {
+          "description": "資料庫名稱。",
+          "type": "string"
+        },
+        "params": {
+          "description": "go-sql-driver 的 DSN 參數，例如 parseTime、loc、charset、timeout。",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "ping_timeout": {
+          "description": "開啟連線時連通性檢查的逾時。",
+          "$ref": "#/$defs/Duration",
+          "default": "3s"
+        },
+        "tls": {
+          "description": "TLS 設定。",
+          "$ref": "#/$defs/TLS",
+          "unevaluatedProperties": false
+        },
+        "max_open_conns": {
+          "description": "連線池：最大開啟連線數，0 為不限。",
+          "type": "integer"
+        },
+        "max_idle_conns": {
+          "description": "連線池：最大閒置連線數，不可超過 max_open_conns。",
+          "type": "integer"
+        },
+        "conn_max_lifetime": {
+          "description": "連線池：連線最長存活時間，0 為不限。",
+          "$ref": "#/$defs/Duration"
+        },
+        "conn_max_idle_time": {
+          "description": "連線池：連線最長閒置時間，0 為不限。",
+          "$ref": "#/$defs/Duration"
+        }
+      }
+    },
+    "Oracle": {
+      "type": "object",
+      "properties": {
+        "dsn": {
+          "description": "完整連線字串，例如 oracle://app:pw@oracle:1521/ORCLPDB1。dsn、connect_string、host 三擇一。",
+          "type": "string"
+        },
+        "host": {
+          "description": "主機名稱或 IP。",
+          "type": "string"
+        },
+        "port": {
+          "description": "連接埠。",
+          "type": "integer",
+          "default": 1521
+        },
+        "service": {
+          "description": "服務名稱；與 sid 擇一。",
+          "type": "string"
+        },
+        "sid": {
+          "description": "舊式系統識別碼（SID）；與 service 擇一。",
+          "type": "string"
+        },
+        "connect_string": {
+          "description": "EZConnect 字串或完整 TNS 描述，取代 host、port、service、sid，用於 RAC 或 failover。",
+          "type": "string"
+        },
+        "user": {
+          "description": "使用者。",
+          "type": "string"
+        },
+        "password": {
+          "description": "密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。",
+          "type": "string"
+        },
+        "params": {
+          "description": "go-ora URL 選項，例如 CONNECTION TIMEOUT（秒）、PREFETCH_ROWS、WALLET。",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "ping_timeout": {
+          "description": "開啟連線時連通性檢查的逾時。",
+          "$ref": "#/$defs/Duration",
+          "default": "3s"
+        },
+        "tls": {
+          "description": "啟用 TCPS；go-ora 以 wallet（params 的 WALLET）或系統根憑證驗證。",
+          "$ref": "#/$defs/TLS",
+          "unevaluatedProperties": false
+        },
+        "max_open_conns": {
+          "description": "連線池：最大開啟連線數，0 為不限。",
+          "type": "integer"
+        },
+        "max_idle_conns": {
+          "description": "連線池：最大閒置連線數，不可超過 max_open_conns。",
+          "type": "integer"
+        },
+        "conn_max_lifetime": {
+          "description": "連線池：連線最長存活時間，0 為不限。",
+          "$ref": "#/$defs/Duration"
+        },
+        "conn_max_idle_time": {
+          "description": "連線池：連線最長閒置時間，0 為不限。",
+          "$ref": "#/$defs/Duration"
+        }
+      }
+    },
+    "Postgres": {
+      "type": "object",
+      "properties": {
+        "dsn": {
+          "description": "完整連線字串，與 host 等欄位擇一；兩者都填時，欄位覆蓋連線字串中的對應部分。\nURL（postgres://app:pw@postgres:5432/orders）或 key=value 形式。",
+          "type": "string"
+        },
+        "host": {
+          "description": "主機名稱或 IP。",
+          "type": "string"
+        },
+        "port": {
+          "description": "連接埠。",
+          "type": "integer",
+          "default": 5432
+        },
+        "user": {
+          "description": "使用者。",
+          "type": "string"
+        },
+        "password": {
+          "description": "密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。",
+          "type": "string"
+        },
+        "database": {
+          "description": "資料庫名稱。",
+          "type": "string"
+        },
+        "params": {
+          "description": "libpq 連線參數（sslmode、connect_timeout）或執行期參數（search_path、application_name、statement_timeout）。",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "ping_timeout": {
+          "description": "開啟連線時連通性檢查的逾時。",
+          "$ref": "#/$defs/Duration",
+          "default": "3s"
+        },
+        "tls": {
+          "description": "TLS 設定；啟用時取代 sslmode 推導出的 TLS 設定。",
+          "$ref": "#/$defs/TLS",
+          "unevaluatedProperties": false
+        },
+        "max_open_conns": {
+          "description": "連線池：最大開啟連線數，0 為不限。",
+          "type": "integer"
+        },
+        "max_idle_conns": {
+          "description": "連線池：最大閒置連線數，不可超過 max_open_conns。",
+          "type": "integer"
+        },
+        "conn_max_lifetime": {
+          "description": "連線池：連線最長存活時間，0 為不限。",
+          "$ref": "#/$defs/Duration"
+        },
+        "conn_max_idle_time": {
+          "description": "連線池：連線最長閒置時間，0 為不限。",
+          "$ref": "#/$defs/Duration"
+        }
+      }
+    },
+    "Redis": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "single、cluster 或 sentinel；空值時推斷：有 master_name 為 sentinel，多個 addrs 為 cluster，否則 single。",
+          "type": "string",
+          "enum": [
+            "single",
+            "cluster",
+            "sentinel"
+          ]
+        },
+        "addrs": {
+          "description": "host:port 清單：單機一個位址、cluster 的種子節點，或 sentinel 節點。",
+          "type": [
+            "array",
+            "string"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "master_name": {
+          "description": "sentinel 模式必填的 master 名稱。",
+          "type": "string"
+        },
+        "username": {
+          "description": "ACL 使用者；空值為 default。",
+          "type": "string"
+        },
+        "password": {
+          "description": "密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。",
+          "type": "string"
+        },
+        "db": {
+          "description": "資料庫編號；cluster 模式只能是 0。",
+          "type": "integer"
+        },
+        "sentinel_username": {
+          "description": "連 sentinel 節點的使用者。",
+          "type": "string"
+        },
+        "sentinel_password": {
+          "description": "連 sentinel 節點的密碼。",
+          "type": "string"
+        },
+        "ping_timeout": {
+          "description": "開啟連線時連通性檢查的逾時。",
+          "$ref": "#/$defs/Duration",
+          "default": "3s"
+        },
+        "tls": {
+          "description": "TLS 設定。",
+          "$ref": "#/$defs/TLS",
+          "unevaluatedProperties": false
+        },
+        "options": {
+          "description": "驅動程式的其他選項：鍵是驅動設定結構的欄位名稱轉成 snake_case，\n對應 go-redis 的 UniversalOptions，例如 pool_size、read_timeout。",
+          "type": "object"
+        }
+      }
+    },
+    "SQLServer": {
+      "type": "object",
+      "properties": {
+        "dsn": {
+          "description": "完整連線字串，與 host 等欄位擇一；兩者都填時，欄位覆蓋連線字串中的對應部分。\n例如 sqlserver://app:pw@sqlserver:1433?database=orders",
+          "type": "string"
+        },
+        "host": {
+          "description": "主機名稱或 IP。",
+          "type": "string"
+        },
+        "port": {
+          "description": "連接埠；設了 instance 時忽略。",
+          "type": "integer",
+          "default": 1433
+        },
+        "instance": {
+          "description": "具名執行個體，經 SQL Server Browser 解析連接埠。",
+          "type": "string"
+        },
+        "user": {
+          "description": "使用者。",
+          "type": "string"
+        },
+        "password": {
+          "description": "密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。",
+          "type": "string"
+        },
+        "database": {
+          "description": "資料庫名稱。",
+          "type": "string"
+        },
+        "params": {
+          "description": "go-mssqldb 連線參數，例如 app name、dial timeout（秒）、encrypt（disable、false、true、strict）。\n啟用 TLS 時 encrypt 未設定則視為 true。",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "ping_timeout": {
+          "description": "開啟連線時連通性檢查的逾時。",
+          "$ref": "#/$defs/Duration",
+          "default": "3s"
+        },
+        "tls": {
+          "description": "憑證驗證設定；CA、server_name 與用戶端憑證在加密開啟時生效。",
+          "$ref": "#/$defs/TLS",
+          "unevaluatedProperties": false
+        },
+        "max_open_conns": {
+          "description": "連線池：最大開啟連線數，0 為不限。",
+          "type": "integer"
+        },
+        "max_idle_conns": {
+          "description": "連線池：最大閒置連線數，不可超過 max_open_conns。",
+          "type": "integer"
+        },
+        "conn_max_lifetime": {
+          "description": "連線池：連線最長存活時間，0 為不限。",
+          "$ref": "#/$defs/Duration"
+        },
+        "conn_max_idle_time": {
+          "description": "連線池：連線最長閒置時間，0 為不限。",
+          "$ref": "#/$defs/Duration"
+        }
+      }
+    },
+    "SQLite": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "檔案路徑、file: URI 或 :memory:。記憶體資料庫只屬於一條連線，連線池會限制為 1。",
+          "type": "string"
+        },
+        "mode": {
+          "description": "開啟模式：ro 唯讀、rw 讀寫、rwc 讀寫且不存在時建立（空值即 rwc）、memory。",
+          "type": "string",
+          "enum": [
+            "ro",
+            "rw",
+            "rwc",
+            "memory"
+          ]
+        },
+        "busy_timeout": {
+          "description": "等待鎖的時間，逾時回傳 SQLITE_BUSY。",
+          "$ref": "#/$defs/Duration",
+          "default": "5s"
+        },
+        "journal_mode": {
+          "description": "日誌模式；空值保留資料庫原本的設定。",
+          "type": "string",
+          "enum": [
+            "delete",
+            "truncate",
+            "persist",
+            "memory",
+            "wal",
+            "off"
+          ],
+          "default": "wal"
+        },
+        "synchronous": {
+          "description": "同步模式；空值為 full，WAL 下用 normal 安全且較快。",
+          "type": "string",
+          "enum": [
+            "off",
+            "normal",
+            "full",
+            "extra"
+          ]
+        },
+        "foreign_keys": {
+          "description": "啟用外鍵約束。",
+          "type": "boolean",
+          "default": true
+        },
+        "tx_lock": {
+          "description": "交易的 BEGIN 模式；空值為 deferred。immediate 可避免讀交易之後寫入時的 SQLITE_BUSY。",
+          "type": "string",
+          "enum": [
+            "deferred",
+            "immediate",
+            "exclusive"
+          ]
+        },
+        "pragmas": {
+          "description": "每條連線都套用的其他 PRAGMA。",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "max_open_conns": {
+          "description": "連線池：最大開啟連線數，0 為不限。",
+          "type": "integer"
+        },
+        "max_idle_conns": {
+          "description": "連線池：最大閒置連線數，不可超過 max_open_conns。",
+          "type": "integer"
+        },
+        "conn_max_lifetime": {
+          "description": "連線池：連線最長存活時間，0 為不限。",
+          "$ref": "#/$defs/Duration"
+        },
+        "conn_max_idle_time": {
+          "description": "連線池：連線最長閒置時間，0 為不限。",
+          "$ref": "#/$defs/Duration"
+        }
+      }
+    },
+    "StreamLoad": {
+      "type": "object",
+      "properties": {
+        "flavor": {
+          "description": "doris 或 starrocks。",
+          "type": "string",
+          "enum": [
+            "doris",
+            "starrocks"
+          ],
+          "default": "doris"
+        },
+        "addrs": {
+          "description": "FE 的 HTTP 端點，host:port 或 http(s)://host:port（預設連接埠 8030）；輪流使用。",
+          "type": [
+            "array",
+            "string"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "username": {
+          "description": "使用者。",
+          "type": "string",
+          "default": "root"
+        },
+        "password": {
+          "description": "密碼（config.Secret，印出時遮蔽）；正式環境建議以環境變數覆蓋。",
+          "type": "string"
+        },
+        "database": {
+          "description": "資料庫（必填）。",
+          "type": "string"
+        },
+        "table": {
+          "description": "預設寫入的資料表。",
+          "type": "string"
+        },
+        "format": {
+          "description": "資料格式：json 或 csv。",
+          "type": "string",
+          "enum": [
+            "json",
+            "csv"
+          ],
+          "default": "json"
+        },
+        "headers": {
+          "description": "每次載入都帶上的屬性，例如 column_separator、strict_mode、timezone、max_filter_ratio。",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "label_prefix": {
+          "description": "自動產生的 load label 前綴。",
+          "type": "string"
+        },
+        "timeout": {
+          "description": "單次 HTTP 載入請求的逾時。",
+          "$ref": "#/$defs/Duration",
+          "default": "5m"
+        },
+        "max_retries": {
+          "description": "失敗時以同一個 label 重試的次數；伺服器依 label 去重。",
+          "type": "integer",
+          "default": 2
+        },
+        "retry_backoff": {
+          "description": "重試間隔。",
+          "$ref": "#/$defs/Duration",
+          "default": "1s"
+        },
+        "tls": {
+          "description": "TLS 設定。",
+          "$ref": "#/$defs/TLS",
+          "unevaluatedProperties": false
+        },
+        "batch": {
+          "description": "批次寫入：任一門檻達到即送出。",
+          "$ref": "#/$defs/StreamLoadBatch",
+          "unevaluatedProperties": false
+        }
+      }
+    },
+    "StreamLoadBatch": {
+      "type": "object",
+      "properties": {
+        "max_rows": {
+          "description": "每批最多列數。",
+          "type": "integer",
+          "default": 100000
+        },
+        "max_bytes": {
+          "description": "每批最大位元組數。",
+          "$ref": "#/$defs/ByteSize",
+          "default": "64MiB"
+        },
+        "flush_interval": {
+          "description": "最長等待時間，到了就送出未滿的批次。",
+          "$ref": "#/$defs/Duration",
+          "default": "5s"
+        }
+      }
+    },
+    "TLS": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "啟用 TLS。其餘欄位只在啟用時生效。",
+          "type": "boolean"
+        },
+        "ca_file": {
+          "description": "信任的 CA（PEM）；空值用系統根憑證。",
+          "type": "string"
+        },
+        "cert_file": {
+          "description": "mTLS 用戶端憑證（PEM），與 key_file 成對設定。",
+          "type": "string"
+        },
+        "key_file": {
+          "description": "mTLS 用戶端私鑰（PEM）。",
+          "type": "string"
+        },
+        "server_name": {
+          "description": "驗證伺服器憑證用的主機名稱；空值取連線位址。",
+          "type": "string"
+        },
+        "insecure_skip_verify": {
+          "description": "略過伺服器憑證驗證，僅限測試環境。",
+          "type": "boolean"
+        },
+        "min_version": {
+          "description": "最低 TLS 版本，空值為 1.2。",
+          "type": "string",
+          "enum": [
+            "1.2",
+            "1.3"
+          ]
+        }
+      }
+    },
+    "Trino": {
+      "type": "object",
+      "properties": {
+        "dsn": {
+          "description": "完整連線字串，例如 https://app@trino:8443?catalog=hive；與 host 等欄位擇一。",
+          "type": "string"
+        },
+        "host": {
+          "description": "主機名稱或 IP。",
+          "type": "string"
+        },
+        "port": {
+          "description": "連接埠。",
+          "type": "integer",
+          "default": 8080
+        },
+        "user": {
+          "description": "使用者（沒有 dsn 時必填）。",
+          "type": "string"
+        },
+        "password": {
+          "description": "密碼；需要 tls.enabled。與 access_token 擇一。",
+          "type": "string"
+        },
+        "access_token": {
+          "description": "JWT；需要 tls.enabled。與 password 擇一。",
+          "type": "string"
+        },
+        "catalog": {
+          "description": "預設 catalog。",
+          "type": "string"
+        },
+        "schema": {
+          "description": "預設 schema。",
+          "type": "string"
+        },
+        "params": {
+          "description": "trino-go-client 的 DSN 參數，例如 source、clientTags、session_properties、query_timeout。",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "ping_timeout": {
+          "description": "開啟連線時連通性檢查的逾時。",
+          "$ref": "#/$defs/Duration",
+          "default": "5s"
+        },
+        "tls": {
+          "description": "TLS 設定。",
+          "$ref": "#/$defs/TLS",
+          "unevaluatedProperties": false
+        },
+        "max_open_conns": {
+          "description": "連線池：最大開啟連線數，0 為不限。",
+          "type": "integer"
+        },
+        "max_idle_conns": {
+          "description": "連線池：最大閒置連線數，不可超過 max_open_conns。",
+          "type": "integer"
+        },
+        "conn_max_lifetime": {
+          "description": "連線池：連線最長存活時間，0 為不限。",
+          "$ref": "#/$defs/Duration"
+        },
+        "conn_max_idle_time": {
+          "description": "連線池：連線最長閒置時間，0 為不限。",
+          "$ref": "#/$defs/Duration"
+        }
+      }
+    }
+  }
+}
