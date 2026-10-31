@@ -24,27 +24,36 @@ if [ -n "$(git status --porcelain -- .)" ]; then
 fi
 
 prefix=github.com/linzeyan/loadconf
-./scripts/work.sh || exit 1
-mods=()
-while read -r path dir; do
-	mods+=("$path")
+export GOWORK=off
+dirs=()
+for gomod in $(git ls-files '*/go.mod'); do
+	dir=$(dirname "$gomod")
+	# The tag names the directory, so it must match the module path.
+	path=$(cd "$dir" && go list -m) || exit 1
+	if [ "$path" != "$prefix/$dir" ]; then
+		echo "$dir holds module $path, not $prefix/$dir" >&2
+		exit 1
+	fi
+	dirs+=("$dir")
 	# Requires carry a version; replace lines ("path => dir") do not.
-	for dep in $(awk -v p="$prefix/" '{for (i = 1; i < NF; i++) if (index($i, p) == 1 && $(i + 1) ~ /^v/) print $i}' "$dir/go.mod"); do
+	for dep in $(awk -v p="$prefix/" '{for (i = 1; i < NF; i++) if (index($i, p) == 1 && $(i + 1) ~ /^v/) print $i}' "$gomod"); do
 		(cd "$dir" && go mod edit -require="$dep@$version") || exit 1
 	done
-done < <(go list -m -f '{{.Path}} {{.Dir}}')
+done
 
-# The replaces in go.work name the required version, which just changed.
-./scripts/work.sh || exit 1
-go build "$prefix/..." || exit 1
+# Each go.mod replaces the other modules with their directories, so every
+# module builds although none of the new tags exist yet.
+for dir in "${dirs[@]}"; do
+	(cd "$dir" && go build ./...) || exit 1
+done
 if [ -n "$(git status --porcelain -- .)" ]; then
 	git add -u -- . && git commit -q -m "release $version" || exit 1
 fi
 
 tags=()
-for mod in "${mods[@]}"; do
-	tag=${mod#"$prefix"/}/$version
-	git tag -a "$tag" -m "$mod $version" || exit 1
+for dir in "${dirs[@]}"; do
+	tag=$dir/$version
+	git tag -a "$tag" -m "$prefix/$dir $version" || exit 1
 	tags+=("$tag")
 done
 printf 'tagged %d modules at %s\n' "${#tags[@]}" "$version"
